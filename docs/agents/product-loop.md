@@ -145,12 +145,34 @@ Allowed automatically:
 - update docs/issues
 - deploy preview/production when Kaan explicitly asks or for already-approved safe changes
 
-Requires Kaan approval unless explicitly delegated:
+Auto-merge allowed after Kaan approval on May 5, 2026:
 
-- merging product/backend PRs
-- deleting data/resources
-- changing secrets or production config
-- major architecture pivots
+- docs-only PRs
+- tests-only PRs
+- small UI polish PRs
+- small isolated bug fixes
+- issue/template/community metadata PRs
+- dependency/config updates only when CI and audit pass and no breaking migration is involved
+
+Auto-merge requirements:
+
+- CI passes on the PR branch
+- local verification was run and listed in the PR body
+- QA/review pass finds no blocker
+- PR is small and focused
+- no secrets, destructive actions, production data deletion, or risky infra changes
+- if deployed, live smoke check passes after merge
+- agent posts a concise summary with merge/deploy/test result
+
+Still requires Kaan approval:
+
+- major schema migrations or destructive database changes
+- auth/security changes that affect access control
+- production secrets or environment changes
+- billing/payment code
+- large architecture pivots
+- risky dependencies or breaking upgrades
+- anything the QA/review agent marks high risk
 
 ## Success metrics
 
@@ -172,4 +194,4 @@ The runtime has two scheduled loops installed:
 - `AgencyOS weekday product build loop` — weekdays at 08:30 UTC. Selects one high-leverage issue, implements a small slice, opens a readable PR, and reports back. Job id: `9530e704-510e-46eb-876c-0cbd5594ac82`.
 - `AgencyOS weekly competitor and QA review` — Mondays at 10:00 UTC. Reviews product/repo state against MOCO, Trello, HubSpot, and Clockify, then creates issues or PRs for adoption gaps. Job id: `c129a260-d73f-401e-aa07-6e92d1e98fbd`.
 
-Both jobs are merge-gated: they may create branches, commits, issues, and PRs, but should not merge product/backend PRs without Kaan approval.
+Both jobs may now auto-merge safe PRs under the policy above. Risky product/backend/security/infra PRs still pause for Kaan approval.
