@@ -168,6 +168,8 @@ AgencyOS is being built in public. Contributions are welcome — especially arou
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md), then pick a small issue or propose one.
 
+New contributors can start with the [`good first issue` backlog](https://github.com/kaad01/agencyos/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). These issues are intentionally scoped for docs, tests, accessibility, and small UX improvements that support the customer → project → ticket → time → report workflow.
+
 ## Principles
 
 - **Agency workflow first** — customers, projects, tickets, team, time, reports.

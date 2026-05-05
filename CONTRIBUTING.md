@@ -14,10 +14,19 @@ Before adding large new modules, check whether the change strengthens that loop.
 
 ## Good first contribution areas
 
+If you are new to the project, start with the [`good first issue` backlog](https://github.com/kaad01/agencyos/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). Each issue should include a narrow scope and acceptance criteria.
+
+Good starter areas include:
+
 - Fix UI rough edges and responsive states.
 - Improve empty/loading/error states.
 - Add tests for domain calculations.
 - Improve docs and setup instructions.
+- Improve small accessibility labels or focus states.
+- Document current report/CSV export behavior.
+
+Larger follow-up areas:
+
 - Help migrate the app from Vite/localStorage to Next.js/PostgreSQL/Prisma/Auth.js.
 - Add database-backed CRUD for customers, projects, tickets, team, and time entries.
 
