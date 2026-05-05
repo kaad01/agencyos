@@ -151,6 +151,8 @@ npm run build
 - [Development workflow](docs/development-workflow.md)
 - [Local database setup](docs/local-database.md)
 - [Agentic development system](docs/agents/agentic-system.md)
+- [Agentic product loop](docs/agents/product-loop.md)
+- [Competitive analysis](docs/competitive-analysis.md)
 
 ## Contributing
 
