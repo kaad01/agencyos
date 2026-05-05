@@ -1,37 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpenCheck, BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, FolderKanban, GitBranch, Handshake, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, UsersRound, X } from 'lucide-react';
-import { calculateMetrics, formatCurrency, initialData, makeId, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus } from './domain';
+import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, LayoutDashboard, Plus, Search, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
+import { byId, calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
 
-type View = 'Overview' | 'Projects' | 'Colleagues' | 'Customers' | 'Workflow';
-type Modal = 'project' | 'colleague' | 'customer' | null;
+type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
+type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
 
-type TourStep = { title: string; body: string; view: View };
-
-const storageKey = 'agencyos.data.v1';
-const tourKey = 'agencyos.tour.done.v1';
-
-const tourSteps: TourStep[] = [
-  { view: 'Overview', title: 'Start with the agency health view', body: 'The overview is your weekly review: active projects, utilization, pipeline value, risk, and next actions.' },
-  { view: 'Projects', title: 'Create delivery work from real customer demand', body: 'Projects connect a customer, a lead, budget, status, progress, dates, and the next action.' },
-  { view: 'Colleagues', title: 'Keep staffing simple', body: 'Colleague capacity and focus make overbooking visible before it becomes delivery risk.' },
-  { view: 'Customers', title: 'Manage relationships, not just tasks', body: 'Customer health, owner, revenue target, and notes make account reviews quick and useful.' },
-  { view: 'Workflow', title: 'Build like an open-source product', body: 'Every product change should move through branch, spec, implementation, tests, PR review, merge, and deploy.' },
-];
-
-const statusOptions: ProjectStatus[] = ['Planning', 'On track', 'At risk', 'Complete'];
+const storageKey = 'agencyos.ops.v1';
 const healthOptions: CustomerHealth[] = ['Excellent', 'Healthy', 'Needs care', 'New'];
 
 function loadData(): AppData {
   try {
     const raw = localStorage.getItem(storageKey);
-    return raw ? JSON.parse(raw) as AppData : initialData;
+    return raw ? { ...initialData, ...JSON.parse(raw) as AppData } : initialData;
   } catch {
     return initialData;
   }
 }
 
-function statusClass(status: ProjectStatus) {
-  return status === 'On track' ? 'green' : status === 'At risk' ? 'amber' : status === 'Complete' ? 'neutral' : 'blue';
+function statusClass(status: ProjectStatus | TicketStatus | TicketPriority) {
+  return ['Active', 'In progress', 'High', 'Urgent', 'At risk'].includes(status) ? 'amber' : ['Done', 'Review'].includes(status) ? 'green' : status === 'Planning' || status === 'Backlog' ? 'blue' : 'neutral';
 }
 
 function initials(name: string) {
@@ -45,63 +32,20 @@ function todayPlus(days: number) {
 }
 
 export function App() {
-  const [view, setView] = useState<View>('Overview');
+  const [view, setView] = useState<View>('Dashboard');
   const [data, setData] = useState<AppData>(() => loadData());
   const [query, setQuery] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(() => initialData.projects[0]?.id ?? '');
   const [modal, setModal] = useState<Modal>(null);
-  const [tourStep, setTourStep] = useState(() => localStorage.getItem(tourKey) ? -1 : 0);
 
   useEffect(() => localStorage.setItem(storageKey, JSON.stringify(data)), [data]);
 
-  function goToTourStep(nextStep: number) {
-    setTourStep(nextStep);
-    setView(tourSteps[nextStep].view);
-  }
-
   const metrics = useMemo(() => calculateMetrics(data), [data]);
+  const safeSelectedProjectId = data.projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : data.projects[0]?.id ?? '';
+  const selectedProject = byId(data.projects, safeSelectedProjectId) ?? data.projects[0];
   const lowerQuery = query.toLowerCase();
   const filteredProjects = data.projects.filter((project) => [project.name, customerName(data, project.customerId), leadName(data, project.leadId), project.status].join(' ').toLowerCase().includes(lowerQuery));
-  const filteredColleagues = data.colleagues.filter((person) => [person.name, person.role, person.focus].join(' ').toLowerCase().includes(lowerQuery));
-  const filteredCustomers = data.customers.filter((customer) => [customer.name, customer.segment, customer.owner, customer.health].join(' ').toLowerCase().includes(lowerQuery));
-  const attentionProjects = data.projects.filter((project) => project.status === 'At risk' || project.progress < 25).slice(0, 3);
-
-  function finishTour() {
-    localStorage.setItem(tourKey, 'true');
-    setTourStep(-1);
-  }
-
-  function resetDemoData() {
-    setData(initialData);
-    setQuery('');
-  }
-
-  function addCustomer(form: FormData) {
-    const customer: Customer = {
-      id: makeId('cust'),
-      name: String(form.get('name') || 'New customer'),
-      segment: String(form.get('segment') || 'Consulting'),
-      owner: String(form.get('owner') || 'Unassigned'),
-      health: form.get('health') as CustomerHealth,
-      revenueTarget: Number(form.get('revenueTarget') || 0),
-      notes: String(form.get('notes') || ''),
-    };
-    setData((current) => ({ ...current, customers: [customer, ...current.customers] }));
-    setModal(null);
-  }
-
-  function addColleague(form: FormData) {
-    const colleague: Colleague = {
-      id: makeId('col'),
-      name: String(form.get('name') || 'New colleague'),
-      role: String(form.get('role') || 'Consultant'),
-      focus: String(form.get('focus') || 'Bench'),
-      capacity: Number(form.get('capacity') || 0),
-      billableTarget: Number(form.get('billableTarget') || 0),
-      active: true,
-    };
-    setData((current) => ({ ...current, colleagues: [colleague, ...current.colleagues] }));
-    setModal(null);
-  }
+  const filteredTickets = data.tickets.filter((ticket) => [ticket.title, projectName(data, ticket.projectId), colleagueName(data, ticket.assigneeId), ticket.status, ticket.priority].join(' ').toLowerCase().includes(lowerQuery));
 
   function addProject(form: FormData) {
     const project: Project = {
@@ -111,154 +55,184 @@ export function App() {
       leadId: String(form.get('leadId') || data.colleagues[0]?.id),
       status: form.get('status') as ProjectStatus,
       budget: Number(form.get('budget') || 0),
-      progress: Number(form.get('progress') || 0),
+      hourlyRate: Number(form.get('hourlyRate') || 100),
       startDate: String(form.get('startDate') || todayPlus(0)),
       endDate: String(form.get('endDate') || todayPlus(30)),
-      nextAction: String(form.get('nextAction') || 'Define next action.'),
+      summary: String(form.get('summary') || ''),
     };
     setData((current) => ({ ...current, projects: [project, ...current.projects] }));
+    setSelectedProjectId(project.id);
+    setView('Projects');
     setModal(null);
+  }
+
+  function addTicket(form: FormData) {
+    const ticket: Ticket = {
+      id: makeId('tic'),
+      projectId: String(form.get('projectId') || selectedProject?.id),
+      title: String(form.get('title') || 'New ticket'),
+      description: String(form.get('description') || ''),
+      assigneeId: String(form.get('assigneeId') || data.colleagues[0]?.id),
+      status: form.get('status') as TicketStatus,
+      priority: form.get('priority') as TicketPriority,
+      estimateHours: Number(form.get('estimateHours') || 1),
+      dueDate: String(form.get('dueDate') || todayPlus(7)),
+    };
+    setData((current) => ({ ...current, tickets: [ticket, ...current.tickets] }));
+    setSelectedProjectId(ticket.projectId);
+    setModal(null);
+  }
+
+  function addTimeEntry(form: FormData) {
+    const entry: TimeEntry = {
+      id: makeId('time'),
+      projectId: String(form.get('projectId') || selectedProject?.id),
+      ticketId: String(form.get('ticketId') || ''),
+      colleagueId: String(form.get('colleagueId') || data.colleagues[0]?.id),
+      date: String(form.get('date') || todayPlus(0)),
+      hours: Number(form.get('hours') || 1),
+      billable: form.get('billable') === 'on',
+      note: String(form.get('note') || ''),
+    };
+    setData((current) => ({ ...current, timeEntries: [entry, ...current.timeEntries] }));
+    setSelectedProjectId(entry.projectId);
+    setModal(null);
+  }
+
+  function addCustomer(form: FormData) {
+    const customer: Customer = { id: makeId('cust'), name: String(form.get('name') || 'New customer'), segment: String(form.get('segment') || 'Consulting'), owner: String(form.get('owner') || 'Unassigned'), health: form.get('health') as CustomerHealth, revenueTarget: Number(form.get('revenueTarget') || 0) };
+    setData((current) => ({ ...current, customers: [customer, ...current.customers] }));
+    setModal(null);
+  }
+
+  function addColleague(form: FormData) {
+    const colleague: Colleague = { id: makeId('col'), name: String(form.get('name') || 'New colleague'), role: String(form.get('role') || 'Consultant'), capacity: Number(form.get('capacity') || 60), billableRate: Number(form.get('billableRate') || 100), active: true };
+    setData((current) => ({ ...current, colleagues: [colleague, ...current.colleagues] }));
+    setModal(null);
+  }
+
+  function moveTicket(ticketId: string, status: TicketStatus) {
+    setData((current) => ({ ...current, tickets: current.tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status } : ticket) }));
+  }
+
+  function exportCsv() {
+    const rows = [['Date', 'Customer', 'Project', 'Ticket', 'Person', 'Hours', 'Billable', 'Note'], ...data.timeEntries.map((entry) => [entry.date, customerName(data, byId(data.projects, entry.projectId)?.customerId ?? ''), projectName(data, entry.projectId), ticketTitle(data, entry.ticketId), colleagueName(data, entry.colleagueId), String(entry.hours), entry.billable ? 'yes' : 'no', entry.note])];
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'agencyos-time-report.csv';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
     <main className="shell">
       <aside className="sidebar" aria-label="Main navigation">
-        <div className="brand"><span className="brandMark">A</span><div><strong>AgencyOS</strong><small>Open consulting ERP</small></div></div>
+        <div className="brand"><span className="brandMark">A</span><div><strong>AgencyOS</strong><small>Consulting operations</small></div></div>
         <nav>
           {[
-            ['Overview', LayoutDashboard],
-            ['Projects', FolderKanban],
-            ['Colleagues', UsersRound],
-            ['Customers', Handshake],
-            ['Workflow', GitBranch],
-          ].map(([label, Icon]) => <button className={view === label ? 'active' : ''} key={label as string} onClick={() => setView(label as View)}><Icon size={18} />{label as string}</button>)}
+            ['Dashboard', LayoutDashboard], ['Projects', FolderKanban], ['Tickets', TicketCheck], ['Time', TimerReset], ['Reports', CircleDollarSign], ['Customers', Handshake], ['Team', UsersRound],
+          ].map(([label, Icon]) => <button className={view === label ? 'active' : ''} key={label as string} onClick={() => setView(label as View)}><Icon size={18}/>{label as string}</button>)}
         </nav>
-        <div className="opensource"><Sparkles size={18}/><strong>Open source first</strong><p>Branch, spec, test, PR, review, merge, deploy. The workflow is part of the product.</p><button className="ghost" onClick={() => goToTourStep(0)}>Restart tour</button></div>
+        <div className="opensource"><CheckCircle2 size={18}/><strong>Real agency workflow</strong><p>Projects → tickets → assignments → time → reports. Onboarding comes later.</p></div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">{view === 'Overview' ? 'Consulting agency command center' : `${view} workspace`}</p>
-            <h1>{headlineFor(view)}</h1>
-          </div>
-          <div className="actions"><label className="search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, customers..." /></label><button onClick={() => setModal(defaultModalFor(view))}><Plus size={18}/>{ctaFor(view)}</button></div>
+          <div><p className="eyebrow">{view}</p><h1>{headlineFor(view)}</h1></div>
+          <div className="actions"><label className="search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, tickets, people..." /></label><button onClick={() => setModal(defaultModalFor(view))}><Plus size={18}/>{ctaFor(view)}</button></div>
         </header>
 
-        {view === 'Overview' && <Overview metrics={metrics} data={data} attentionProjects={attentionProjects} onNewProject={() => setModal('project')} onReset={resetDemoData} />}
-        {view === 'Projects' && <ProjectView projects={filteredProjects} data={data} onNew={() => setModal('project')} />}
-        {view === 'Colleagues' && <ColleagueView colleagues={filteredColleagues} onNew={() => setModal('colleague')} />}
-        {view === 'Customers' && <CustomerView customers={filteredCustomers} data={data} onNew={() => setModal('customer')} />}
-        {view === 'Workflow' && <WorkflowView />}
+        {view === 'Dashboard' && <Dashboard data={data} metrics={metrics} onSelectProject={(id) => { setSelectedProjectId(id); setView('Projects'); }} onNewProject={() => setModal('project')} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onOpenReports={() => setView('Reports')} />}
+        {view === 'Projects' && selectedProject && <ProjectsView data={data} projects={filteredProjects} selectedProject={selectedProject} onSelectProject={setSelectedProjectId} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onMoveTicket={moveTicket} />}
+        {view === 'Tickets' && <TicketsView data={data} tickets={filteredTickets} onMoveTicket={moveTicket} onNew={() => setModal('ticket')} />}
+        {view === 'Time' && <TimeView data={data} onNew={() => setModal('time')} />}
+        {view === 'Reports' && <ReportsView data={data} metrics={metrics} onExport={exportCsv} />}
+        {view === 'Customers' && <CustomersView data={data} onNew={() => setModal('customer')} />}
+        {view === 'Team' && <TeamView data={data} onNew={() => setModal('colleague')} />}
       </section>
 
-      {modal && <EntityModal modal={modal} data={data} onClose={() => setModal(null)} onCustomer={addCustomer} onColleague={addColleague} onProject={addProject} />}
-      {tourStep >= 0 && <TourOverlay step={tourStep} onBack={() => goToTourStep(Math.max(0, tourStep - 1))} onNext={() => tourStep === tourSteps.length - 1 ? finishTour() : goToTourStep(tourStep + 1)} onSkip={finishTour} />}
+      {modal && <EntityModal modal={modal} data={data} selectedProjectId={selectedProject?.id ?? ''} onClose={() => setModal(null)} onProject={addProject} onTicket={addTicket} onTime={addTimeEntry} onCustomer={addCustomer} onColleague={addColleague} />}
     </main>
   );
 }
 
-function Overview({ metrics, data, attentionProjects, onNewProject, onReset }: { metrics: ReturnType<typeof calculateMetrics>; data: AppData; attentionProjects: Project[]; onNewProject: () => void; onReset: () => void }) {
+function Dashboard({ data, metrics, onSelectProject, onNewProject, onNewTicket, onLogTime, onOpenReports }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onSelectProject: (id: string) => void; onNewProject: () => void; onNewTicket: () => void; onLogTime: () => void; onOpenReports: () => void }) {
   const stats = [
-    { label: 'Active projects', value: String(metrics.activeProjects), delta: `${metrics.atRisk} needs attention`, icon: FolderKanban },
-    { label: 'Team utilization', value: `${metrics.utilization}%`, delta: metrics.utilization > 85 ? 'Capacity pressure' : 'Healthy capacity', icon: Clock3 },
-    { label: 'Pipeline value', value: formatCurrency(metrics.pipelineValue), delta: 'Active delivery budget', icon: CircleDollarSign },
-    { label: 'Customers', value: String(metrics.customers), delta: 'Managed accounts', icon: Handshake },
+    { label: 'Active projects', value: String(metrics.activeProjects), delta: `${metrics.atRisk} at risk`, icon: FolderKanban },
+    { label: 'Open tickets', value: String(metrics.openTickets), delta: 'Across all projects', icon: TicketCheck },
+    { label: 'Billable hours', value: `${metrics.billableHours}h`, delta: `${metrics.utilization}% billable ratio`, icon: Clock3 },
+    { label: 'Earned so far', value: formatCurrency(metrics.revenue), delta: `${formatCurrency(metrics.budget)} active budget`, icon: CircleDollarSign },
   ];
-
-  return <>
-    <section className="hero">
-      <div><p className="eyebrow">Guided operating rhythm</p><h2>Run the weekly agency review in one screen.</h2><p>Start with risks, staffing, account health, and project next actions. Add records as work becomes real; the dashboard updates from saved data.</p></div>
-      <div className="heroCard"><CheckCircle2/><strong>Today’s workflow</strong><span>Review risks → confirm staffing → update customers → create project next actions.</span><button onClick={onNewProject}>Create first project</button></div>
-    </section>
-    <section className="stats">{stats.map(({ label, value, delta, icon: Icon }) => <article className="stat" key={label}><Icon/><span>{label}</span><strong>{value}</strong><small>{delta}</small></article>)}</section>
-    <section className="grid">
-      <article className="panel wide"><PanelTitle eyebrow="Project management" title="Needs attention" action="Reset demo" onAction={onReset}/><div className="projectList">{attentionProjects.map((project) => <ProjectRow key={project.id} project={project} data={data} />)}{attentionProjects.length === 0 && <EmptyState title="No delivery risks" body="Nothing is at risk right now. Add a project or update statuses during weekly review." />}</div></article>
-      <article className="panel"><PanelTitle eyebrow="Colleague management" title="Capacity pressure" />{data.colleagues.slice().sort((a, b) => b.capacity - a.capacity).slice(0, 4).map((person) => <PersonRow key={person.id} person={person} />)}</article>
-      <article className="panel"><PanelTitle eyebrow="Customer management" title="Account health" />{data.customers.slice(0, 4).map((customer) => <CustomerRow key={customer.id} customer={customer} open={data.projects.filter((project) => project.customerId === customer.id).length} />)}</article>
-    </section>
-  </>;
+  const urgentTickets = data.tickets.filter((ticket) => ticket.priority === 'Urgent' || ticket.priority === 'High');
+  return <><section className="hero"><div><p className="eyebrow">MOCO + Trello + Clockify core</p><h2>Run consulting delivery from project cockpit to reports.</h2><p>Track project health, assign ticket work, log billable time, and understand where the agency spends effort.</p></div><div className="heroCard"><TimerReset/><strong>Today’s useful loop</strong><span>Create project → add ticket → assign colleague → log time → review reports.</span><div className="quickActions"><button onClick={onNewProject}><Plus size={16}/>Project</button><button className="ghost" onClick={onNewTicket}>Ticket</button><button className="ghost" onClick={onLogTime}>Time</button><button className="ghost" onClick={onOpenReports}>Reports</button></div></div></section><section className="stats">{stats.map(({ label, value, delta, icon: Icon }) => <article className="stat" key={label}><Icon/><span>{label}</span><strong>{value}</strong><small>{delta}</small></article>)}</section><section className="grid"><article className="panel wide"><PanelTitle eyebrow="Project cockpit" title="Active projects" />{data.projects.length ? data.projects.map((project) => <button className="projectButton" key={project.id} onClick={() => onSelectProject(project.id)}><ProjectSummary data={data} project={project}/></button>) : <EmptyState title="No projects yet" body="Create the first client project, then add tickets and time from its cockpit." action="Create project" onAction={onNewProject}/>}</article><article className="panel"><PanelTitle eyebrow="Ticket system" title="Priority work" action="New ticket" onAction={onNewTicket}/>{urgentTickets.length ? urgentTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id}/>) : <EmptyState title="No high-priority tickets" body="Add delivery work when a project needs attention." action="Add ticket" onAction={onNewTicket}/>}</article><article className="panel"><PanelTitle eyebrow="Time tracking" title="Recent entries" action="Log time" onAction={onLogTime}/>{data.timeEntries.length ? data.timeEntries.slice(0, 4).map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>) : <EmptyState title="No time logged" body="Log time against a ticket to make reports and budgets useful." action="Log time" onAction={onLogTime}/>}</article></section></>;
 }
 
-function ProjectView({ projects, data, onNew }: { projects: Project[]; data: AppData; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Project management" title="Delivery portfolio" action="New project" onAction={onNew}/><div className="tableHeader project"><span>Project</span><span>Progress</span><span>Budget</span><span>Status</span><span>Due</span></div><div className="projectList">{projects.map((project) => <ProjectRow key={project.id} project={project} data={data} />)}{projects.length === 0 && <EmptyState title="No projects found" body="Create a project to connect customer demand, budget, lead, dates, and next action." />}</div></section>;
+function ProjectsView({ data, projects, selectedProject, onSelectProject, onNewTicket, onLogTime, onMoveTicket }: { data: AppData; projects: Project[]; selectedProject: Project; onSelectProject: (id: string) => void; onNewTicket: () => void; onLogTime: () => void; onMoveTicket: (ticketId: string, status: TicketStatus) => void }) {
+  const tickets = data.tickets.filter((ticket) => ticket.projectId === selectedProject.id);
+  const time = data.timeEntries.filter((entry) => entry.projectId === selectedProject.id);
+  return <section className="projectWorkspace"><aside className="projectListRail"><PanelTitle eyebrow="Projects" title="Portfolio" />{projects.map((project) => <button className={project.id === selectedProject.id ? 'selected projectRailItem' : 'projectRailItem'} key={project.id} onClick={() => onSelectProject(project.id)}>{project.name}<small>{customerName(data, project.customerId)}</small></button>)}</aside><article className="panel projectCockpit"><div className="cockpitHead"><div><p className="eyebrow">{customerName(data, selectedProject.customerId)} · Lead {leadName(data, selectedProject.leadId)}</p><h2>{selectedProject.name}</h2><p>{selectedProject.summary}</p></div><em className={statusClass(selectedProject.status)}>{selectedProject.status}</em></div><section className="miniStats"><span><strong>{tickets.filter((ticket) => ticket.status !== 'Done').length}</strong> open tickets</span><span><strong>{projectHours(data, selectedProject.id)}h</strong> logged</span><span><strong>{projectBillableHours(data, selectedProject.id)}h</strong> billable</span><span><strong>{formatCurrency(projectRevenue(data, selectedProject.id))}</strong> earned</span></section><div className="cockpitActions"><button onClick={onNewTicket}><Plus size={16}/>Add ticket</button><button className="ghost" onClick={onLogTime}><TimerReset size={16}/>Log time</button></div><Board data={data} tickets={tickets} onMoveTicket={onMoveTicket}/><PanelTitle eyebrow="Timesheet" title="Project time" />{time.map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>)}</article></section>;
 }
 
-function ColleagueView({ colleagues, onNew }: { colleagues: Colleague[]; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Colleague management" title="Team directory and utilization" action="New colleague" onAction={onNew}/><div className="peopleGrid">{colleagues.map((person) => <article className="personCard" key={person.id}><PersonRow person={person}/><div className="meter"><i style={{ width: `${person.capacity}%` }} /></div><small>{person.billableTarget}h weekly billable target · {person.active ? 'Active' : 'Inactive'}</small></article>)}</div>{colleagues.length === 0 && <EmptyState title="No colleagues found" body="Add your team so project leads and utilization can be managed properly." />}</section>;
+function Board({ data, tickets, onMoveTicket }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus) => void }) {
+  return <div className="board">{ticketStatuses.map((status) => <section className="boardColumn" key={status}><h3>{status}</h3>{tickets.filter((ticket) => ticket.status === status).map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(next) => onMoveTicket(ticket.id, next)}/>)}</section>)}</div>;
 }
 
-function CustomerView({ customers, data, onNew }: { customers: Customer[]; data: AppData; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Customer management" title="Accounts" action="New customer" onAction={onNew}/><div className="cardGrid">{customers.map((customer) => <article className="accountCard" key={customer.id}><CustomerRow customer={customer} open={data.projects.filter((project) => project.customerId === customer.id).length}/><p>{customer.notes}</p><small>Owner: {customer.owner} · Segment: {customer.segment}</small></article>)}</div>{customers.length === 0 && <EmptyState title="No customers found" body="Create a customer before planning projects and account work." />}</section>;
+function TicketsView({ data, tickets, onMoveTicket, onNew }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus) => void; onNew: () => void }) {
+  return <section className="panel"><PanelTitle eyebrow="Tickets" title="Global ticket system" action="New ticket" onAction={onNew}/><div className="cardGrid">{tickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(status) => onMoveTicket(ticket.id, status)}/>)}</div></section>;
 }
 
-function WorkflowView() {
-  const steps = ['Create branch', 'Write spec', 'Implement slice', 'Run tests', 'Open PR', 'Review UX/code', 'Merge to master', 'Deploy via Vercel'];
-  return <section className="grid"><article className="panel wide"><PanelTitle eyebrow="Product development" title="AgencyOS delivery workflow"/><div className="workflowSteps">{steps.map((step, index) => <div className="workflowStep" key={step}><span>{index + 1}</span><strong>{step}</strong><p>{workflowCopy(step)}</p></div>)}</div></article><article className="panel"><BookOpenCheck/><h3>Definition of done</h3><ul className="checklist"><li>Requirement/spec updated</li><li>Functional UI path implemented</li><li>Onboarding/help updated</li><li>Lint, test, build passing</li><li>PR has summary + evidence</li></ul></article><article className="panel"><Lightbulb/><h3>Next product slices</h3><p>Authentication, database-backed workspaces, edit/delete flows, time tracking, invoices, retainers, reporting, and GitHub issue templates.</p></article></section>;
+function TimeView({ data, onNew }: { data: AppData; onNew: () => void }) {
+  return <section className="panel"><PanelTitle eyebrow="Time management" title="Manual timesheet" action="Log time" onAction={onNew}/>{data.timeEntries.map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>)}</section>;
 }
 
-function EntityModal({ modal, data, onClose, onCustomer, onColleague, onProject }: { modal: Modal; data: AppData; onClose: () => void; onCustomer: (form: FormData) => void; onColleague: (form: FormData) => void; onProject: (form: FormData) => void }) {
-  const title = modal === 'project' ? 'Create project' : modal === 'colleague' ? 'Add colleague' : 'Add customer';
-  return <div className="modalBackdrop" role="dialog" aria-modal="true"><form className="modal" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); if (modal === 'project') onProject(form); if (modal === 'colleague') onColleague(form); if (modal === 'customer') onCustomer(form); }}><div className="modalHead"><h2>{title}</h2><button type="button" className="iconButton" onClick={onClose}><X size={18}/></button></div>{modal === 'project' && <ProjectFields data={data}/>} {modal === 'colleague' && <ColleagueFields/>} {modal === 'customer' && <CustomerFields/>}<div className="modalActions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button type="submit">Save</button></div></form></div>;
+function ReportsView({ data, metrics, onExport }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: () => void }) {
+  return <section className="grid"><article className="panel wide"><PanelTitle eyebrow="Reports" title="Project profitability and hours" action="Export CSV" onAction={onExport}/>{data.projects.map((project) => <div className="reportRow" key={project.id}><div><strong>{project.name}</strong><small>{customerName(data, project.customerId)}</small></div><span>{projectHours(data, project.id)}h total</span><span>{projectBillableHours(data, project.id)}h billable</span><span>{projectBudgetUsedPercent(data, project.id)}% budget</span><b>{formatCurrency(projectRevenue(data, project.id))}</b></div>)}</article><article className="panel"><Download/><h3>Report summary</h3><p>{metrics.totalHours}h tracked, {metrics.billableHours}h billable, {formatCurrency(metrics.revenue)} earned from logged work.</p></article></section>;
 }
 
-function ProjectFields({ data }: { data: AppData }) {
-  return <><label>Project name<input name="name" required placeholder="Discovery sprint" /></label><label>Customer<select name="customerId">{data.customers.map((customer) => <option value={customer.id} key={customer.id}>{customer.name}</option>)}</select></label><label>Lead<select name="leadId">{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><div className="formGrid"><label>Budget<input name="budget" type="number" min="0" defaultValue="12000" /></label><label>Progress<input name="progress" type="number" min="0" max="100" defaultValue="0" /></label></div><label>Status<select name="status">{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></label><div className="formGrid"><label>Start<input name="startDate" type="date" defaultValue={todayPlus(0)} /></label><label>End<input name="endDate" type="date" defaultValue={todayPlus(30)} /></label></div><label>Next action<textarea name="nextAction" placeholder="What should happen next?" /></label></>;
+function CustomersView({ data, onNew }: { data: AppData; onNew: () => void }) {
+  return <section className="panel"><PanelTitle eyebrow="Customers" title="Accounts and delivery" action="New customer" onAction={onNew}/><div className="cardGrid">{data.customers.map((customer) => {
+    const projects = customerProjects(data, customer.id);
+    const revenue = customerRevenue(data, customer.id);
+    const targetProgress = customer.revenueTarget ? Math.min(100, Math.round((revenue / customer.revenueTarget) * 100)) : 0;
+    return <article className="accountCard" key={customer.id}><CustomerRow customer={customer} open={projects.length}/><div className="deliveryFacts"><span>{projects.filter((project) => project.status !== 'Done').length} active</span><span>{customerHours(data, customer.id)}h logged</span><span>{formatCurrency(revenue)} earned</span></div><div className="meter"><i style={{ width: `${targetProgress}%` }} /></div><small>Owner: {customer.owner} · Target: {formatCurrency(customer.revenueTarget)} · {projects.filter((project) => project.status === 'At risk').length} at risk</small></article>;
+  })}</div></section>;
 }
 
-function ColleagueFields() {
-  return <><label>Name<input name="name" required placeholder="Alex Morgan" /></label><label>Role<input name="role" placeholder="Consultant" /></label><label>Focus<input name="focus" placeholder="Client / capability focus" /></label><div className="formGrid"><label>Capacity %<input name="capacity" type="number" min="0" max="120" defaultValue="70" /></label><label>Billable target h/week<input name="billableTarget" type="number" min="0" defaultValue="30" /></label></div></>;
+function TeamView({ data, onNew }: { data: AppData; onNew: () => void }) {
+  return <section className="panel"><PanelTitle eyebrow="Team" title="Colleagues and workload" action="New colleague" onAction={onNew}/><div className="peopleGrid">{data.colleagues.map((person) => {
+    const openTickets = data.tickets.filter((ticket) => ticket.assigneeId === person.id && ticket.status !== 'Done');
+    const plannedHours = colleagueOpenTicketEstimate(data, person.id);
+    const loggedHours = colleagueLoggedHours(data, person.id);
+    const load = Math.min(120, Math.round(((plannedHours + loggedHours) / Math.max(person.capacity, 1)) * 100));
+    return <article className="personCard" key={person.id}><PersonRow person={person}/><div className="deliveryFacts"><span>{openTickets.length} open tickets</span><span>{plannedHours}h planned</span><span>{loggedHours}h logged</span></div><div className="meter"><i style={{ width: `${Math.min(100, load)}%` }} /></div><small>{person.billableRate}€/h · {person.capacity}h capacity signal · {load}% delivery load</small></article>;
+  })}</div></section>;
 }
 
-function CustomerFields() {
-  return <><label>Customer name<input name="name" required placeholder="Acme GmbH" /></label><label>Segment<input name="segment" placeholder="B2B SaaS" /></label><label>Owner<input name="owner" placeholder="Account owner" /></label><div className="formGrid"><label>Health<select name="health">{healthOptions.map((health) => <option key={health}>{health}</option>)}</select></label><label>Revenue target<input name="revenueTarget" type="number" min="0" defaultValue="25000" /></label></div><label>Notes<textarea name="notes" placeholder="Relationship context, risks, goals..." /></label></>;
+function EntityModal({ modal, data, selectedProjectId, onClose, onProject, onTicket, onTime, onCustomer, onColleague }: { modal: Modal; data: AppData; selectedProjectId: string; onClose: () => void; onProject: (form: FormData) => void; onTicket: (form: FormData) => void; onTime: (form: FormData) => void; onCustomer: (form: FormData) => void; onColleague: (form: FormData) => void }) {
+  const title = modal === 'project' ? 'Create project' : modal === 'ticket' ? 'Create ticket' : modal === 'time' ? 'Log time' : modal === 'customer' ? 'Add customer' : 'Add colleague';
+  return <div className="modalBackdrop" role="dialog" aria-modal="true"><form className="modal" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); if (modal === 'project') onProject(form); if (modal === 'ticket') onTicket(form); if (modal === 'time') onTime(form); if (modal === 'customer') onCustomer(form); if (modal === 'colleague') onColleague(form); }}><div className="modalHead"><h2>{title}</h2><button type="button" className="iconButton" onClick={onClose}><X size={18}/></button></div>{modal === 'project' && <ProjectFields data={data}/>} {modal === 'ticket' && <TicketFields data={data} selectedProjectId={selectedProjectId}/>} {modal === 'time' && <TimeFields data={data} selectedProjectId={selectedProjectId}/>} {modal === 'customer' && <CustomerFields/>} {modal === 'colleague' && <ColleagueFields/>}<div className="modalActions"><button type="button" className="ghost" onClick={onClose}>Cancel</button><button type="submit">Save</button></div></form></div>;
 }
 
-function TourOverlay({ step, onBack, onNext, onSkip }: { step: number; onBack: () => void; onNext: () => void; onSkip: () => void }) {
-  const current = tourSteps[step];
-  return <div className="tour"><div className="tourCard"><p className="eyebrow">Training onboarding · Step {step + 1}/{tourSteps.length}</p><h2>{current.title}</h2><p>{current.body}</p><div className="tourActions"><button className="ghost" onClick={onSkip}>Skip</button><button className="ghost" disabled={step === 0} onClick={onBack}>Back</button><button onClick={onNext}>{step === tourSteps.length - 1 ? 'Finish' : 'Next'}</button></div></div></div>;
-}
+function ProjectFields({ data }: { data: AppData }) { return <><label>Project name<input name="name" required placeholder="Website relaunch" /></label><label>Customer<select name="customerId">{data.customers.map((customer) => <option value={customer.id} key={customer.id}>{customer.name}</option>)}</select></label><label>Lead<select name="leadId">{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><div className="formGrid"><label>Budget<input name="budget" type="number" defaultValue="20000" /></label><label>Hourly rate<input name="hourlyRate" type="number" defaultValue="120" /></label></div><label>Status<select name="status">{projectStatuses.map((status) => <option key={status}>{status}</option>)}</select></label><div className="formGrid"><label>Start<input name="startDate" type="date" defaultValue={todayPlus(0)} /></label><label>End<input name="endDate" type="date" defaultValue={todayPlus(30)} /></label></div><label>Summary<textarea name="summary" placeholder="What is this project about?" /></label></>; }
+function TicketFields({ data, selectedProjectId }: { data: AppData; selectedProjectId: string }) { return <><label>Ticket title<input name="title" required placeholder="Run stakeholder workshop" /></label><label>Project<select name="projectId" defaultValue={selectedProjectId}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Assignee<select name="assigneeId">{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><div className="formGrid"><label>Status<select name="status">{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select></label><label>Priority<select name="priority" defaultValue="Medium">{priorities.map((priority) => <option key={priority}>{priority}</option>)}</select></label></div><div className="formGrid"><label>Estimate hours<input name="estimateHours" type="number" min="0" step="0.5" defaultValue="4" /></label><label>Due date<input name="dueDate" type="date" defaultValue={todayPlus(7)} /></label></div><label>Description<textarea name="description" placeholder="What needs to happen?" /></label></>; }
+function TimeFields({ data, selectedProjectId }: { data: AppData; selectedProjectId: string }) { const [projectId, setProjectId] = useState(selectedProjectId); const projectTickets = data.tickets.filter((ticket) => ticket.projectId === projectId); return <><label>Project<select name="projectId" value={projectId} onChange={(event) => setProjectId(event.target.value)}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select name="ticketId" key={projectId}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select><small className="fieldHint">Only tickets from the selected project appear here, so logged time rolls up cleanly.</small></label><label>Person<select name="colleagueId">{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><div className="formGrid"><label>Date<input name="date" type="date" defaultValue={todayPlus(0)} /></label><label>Hours<input name="hours" type="number" min="0.25" step="0.25" defaultValue="1" /></label></div><label className="checkbox"><input name="billable" type="checkbox" defaultChecked />Billable</label><label>Note<textarea name="note" placeholder="What did you work on?" /></label></>; }
+function CustomerFields() { return <><label>Customer name<input name="name" required placeholder="Acme GmbH" /></label><label>Segment<input name="segment" placeholder="B2B SaaS" /></label><label>Owner<input name="owner" placeholder="Account owner" /></label><div className="formGrid"><label>Health<select name="health">{healthOptions.map((health) => <option key={health}>{health}</option>)}</select></label><label>Revenue target<input name="revenueTarget" type="number" defaultValue="25000" /></label></div></>; }
+function ColleagueFields() { return <><label>Name<input name="name" required placeholder="Alex Morgan" /></label><label>Role<input name="role" placeholder="Consultant" /></label><div className="formGrid"><label>Capacity %<input name="capacity" type="number" min="0" max="120" defaultValue="70" /></label><label>Billable rate €/h<input name="billableRate" type="number" min="0" defaultValue="100" /></label></div></>; }
 
-function ProjectRow({ project, data }: { project: Project; data: AppData }) {
-  return <div className="project"><div><strong>{project.name}</strong><span>{customerName(data, project.customerId)} · Lead {leadName(data, project.leadId)}</span><small>{project.nextAction}</small></div><div className="meter"><i style={{ width: `${project.progress}%` }} /></div><b>{formatCurrency(project.budget)}</b><em className={statusClass(project.status)}>{project.status}</em><small>{new Date(project.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div>;
-}
-
-function PersonRow({ person }: { person: Colleague }) {
-  return <div className="person"><span>{initials(person.name)}</span><div><strong>{person.name}</strong><small>{person.role} · {person.focus}</small></div><b>{person.capacity}%</b></div>;
-}
-
-function CustomerRow({ customer, open }: { customer: Customer; open: number }) {
-  return <div className="customer"><BriefcaseBusiness/><div><strong>{customer.name}</strong><small>{open} open projects · {customer.segment}</small></div><span>{formatCurrency(customer.revenueTarget)}</span><em>{customer.health}</em></div>;
-}
-
-function PanelTitle({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
-  return <div className="panelHead"><div><p className="eyebrow">{eyebrow}</p><h3>{title}</h3></div>{action && <button className="linkButton" onClick={onAction}>{action}</button>}</div>;
-}
-
-function EmptyState({ title, body }: { title: string; body: string }) {
-  return <div className="empty"><strong>{title}</strong><p>{body}</p></div>;
-}
-
-function customerName(data: AppData, id: string) {
-  return data.customers.find((customer) => customer.id === id)?.name ?? 'Unknown customer';
-}
-
-function leadName(data: AppData, id: string) {
-  return data.colleagues.find((person) => person.id === id)?.name ?? 'Unassigned';
-}
-
-function headlineFor(view: View) {
-  return ({ Overview: 'Projects, people, and customers in one calm place.', Projects: 'Plan, track, and rescue consulting delivery.', Colleagues: 'Know who is busy, available, and focused.', Customers: 'Keep account health visible and actionable.', Workflow: 'Ship changes through a professional product workflow.' })[view];
-}
-
-function ctaFor(view: View) {
-  return view === 'Colleagues' ? 'New colleague' : view === 'Customers' ? 'New customer' : view === 'Workflow' ? 'New project' : 'New project';
-}
-
-function defaultModalFor(view: View): Modal {
-  return view === 'Colleagues' ? 'colleague' : view === 'Customers' ? 'customer' : 'project';
-}
-
-function workflowCopy(step: string) {
-  return ({ 'Create branch': 'Start from master with a focused feature branch.', 'Write spec': 'Capture user need, acceptance criteria, and tradeoffs first.', 'Implement slice': 'Build the smallest useful workflow end-to-end.', 'Run tests': 'Use lint, unit tests, and production build as gates.', 'Open PR': 'Explain what changed, why, screenshots, and evidence.', 'Review UX/code': 'Check simplicity, accessibility, correctness, and maintainability.', 'Merge to master': 'Merge only when the branch is reviewable and green.', 'Deploy via Vercel': 'Use preview deployments for review and production for master.' })[step];
-}
+function ProjectSummary({ data, project }: { data: AppData; project: Project }) { return <div className="projectSummary"><div><strong>{project.name}</strong><span>{customerName(data, project.customerId)} · Lead {leadName(data, project.leadId)}</span></div><em className={statusClass(project.status)}>{project.status}</em><small>{projectHours(data, project.id)}h · {projectBudgetUsedPercent(data, project.id)}% of {formatCurrency(project.budget)}</small></div>; }
+function TicketCard({ data, ticket, onMove }: { data: AppData; ticket: Ticket; onMove?: (status: TicketStatus) => void }) { return <article className="ticketCard"><div><strong>{ticket.title}</strong><p>{ticket.description}</p></div><div className="ticketMeta"><span>{projectName(data, ticket.projectId)}</span><span>{colleagueName(data, ticket.assigneeId)}</span><em className={statusClass(ticket.priority)}>{ticket.priority}</em></div><small>{ticketLoggedHours(data, ticket.id)}h logged / {ticket.estimateHours}h est · due {new Date(ticket.dueDate).toLocaleDateString()}</small>{onMove && <select value={ticket.status} onChange={(event) => onMove(event.target.value as TicketStatus)}>{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select>}</article>; }
+function TimeRow({ data, entry }: { data: AppData; entry: TimeEntry }) { return <div className="timeRow"><TimerReset size={18}/><div><strong>{entry.hours}h · {projectName(data, entry.projectId)}</strong><small>{ticketTitle(data, entry.ticketId)} · {colleagueName(data, entry.colleagueId)} · {entry.date}</small></div><em className={entry.billable ? 'green' : 'neutral'}>{entry.billable ? 'Billable' : 'Internal'}</em></div>; }
+function PersonRow({ person }: { person: Colleague }) { return <div className="person"><span>{initials(person.name)}</span><div><strong>{person.name}</strong><small>{person.role}</small></div><b>{person.capacity}%</b></div>; }
+function CustomerRow({ customer, open }: { customer: Customer; open: number }) { return <div className="customer"><BriefcaseBusiness/><div><strong>{customer.name}</strong><small>{open} projects · {customer.segment}</small></div><em>{customer.health}</em></div>; }
+function PanelTitle({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) { return <div className="panelHead"><div><p className="eyebrow">{eyebrow}</p><h3>{title}</h3></div>{action && <button className="linkButton" onClick={onAction}>{action}</button>}</div>; }
+function EmptyState({ title, body, action, onAction }: { title: string; body: string; action: string; onAction: () => void }) { return <div className="emptyState"><strong>{title}</strong><p>{body}</p><button className="linkButton" onClick={onAction}>{action}</button></div>; }
+function customerName(data: AppData, id: string) { return byId(data.customers, id)?.name ?? 'Unknown customer'; }
+function projectName(data: AppData, id: string) { return byId(data.projects, id)?.name ?? 'Unknown project'; }
+function leadName(data: AppData, id: string) { return colleagueName(data, id); }
+function colleagueName(data: AppData, id: string) { return byId(data.colleagues, id)?.name ?? 'Unassigned'; }
+function ticketTitle(data: AppData, id: string) { return byId(data.tickets, id)?.title ?? 'No ticket'; }
+function headlineFor(view: View) { return ({ Dashboard: 'Agency operations that connect work, people, and money.', Projects: 'A real project cockpit with tickets, time, and team.', Tickets: 'Assign, move, and track delivery tickets.', Time: 'Log billable and internal consulting time.', Reports: 'See hours, revenue, utilization, and project load.', Customers: 'Manage client accounts around real delivery.', Team: 'Understand workload, rates, and assignments.' })[view]; }
+function ctaFor(view: View) { return view === 'Tickets' ? 'New ticket' : view === 'Time' ? 'Log time' : view === 'Customers' ? 'New customer' : view === 'Team' ? 'New colleague' : 'New project'; }
+function defaultModalFor(view: View): Modal { return view === 'Tickets' ? 'ticket' : view === 'Time' ? 'time' : view === 'Customers' ? 'customer' : view === 'Team' ? 'colleague' : 'project'; }

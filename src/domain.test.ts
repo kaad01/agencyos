@@ -1,15 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, formatCurrency, initialData } from './domain';
+import { calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
 
-describe('AgencyOS domain metrics', () => {
-  it('calculates dashboard metrics from app data', () => {
+describe('AgencyOS operations metrics', () => {
+  it('calculates dashboard metrics from projects, tickets, and time entries', () => {
     const metrics = calculateMetrics(initialData);
 
     expect(metrics.activeProjects).toBe(3);
-    expect(metrics.customers).toBe(3);
+    expect(metrics.openTickets).toBe(4);
     expect(metrics.atRisk).toBe(1);
-    expect(metrics.pipelineValue).toBe(87000);
-    expect(metrics.utilization).toBe(73);
+    expect(metrics.totalHours).toBe(11);
+    expect(metrics.billableHours).toBe(9.5);
+    expect(metrics.utilization).toBe(86);
+    expect(metrics.budget).toBe(87000);
+    expect(metrics.revenue).toBe(1100);
+  });
+
+  it('rolls time up to project and ticket reporting', () => {
+    expect(projectHours(initialData, 'proj-brand')).toBe(5.5);
+    expect(projectBillableHours(initialData, 'proj-brand')).toBe(5.5);
+    expect(projectRevenue(initialData, 'proj-brand')).toBe(660);
+    expect(projectBudgetUsedPercent(initialData, 'proj-brand')).toBe(2);
+    expect(ticketLoggedHours(initialData, 'tic-scope')).toBe(5.5);
+  });
+
+  it('connects customer and colleague screens to delivery work', () => {
+    expect(customerHours(initialData, 'cust-acme')).toBe(5.5);
+    expect(customerRevenue(initialData, 'cust-acme')).toBe(440);
+    expect(colleagueLoggedHours(initialData, 'col-sara')).toBe(2);
+    expect(colleagueOpenTicketEstimate(initialData, 'col-sara')).toBe(9);
   });
 
   it('formats agency budgets as EUR', () => {

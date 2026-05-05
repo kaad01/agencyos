@@ -2,53 +2,84 @@
 
 ## Product intent
 
-AgencyOS is a focused, open-source operating system for small consulting agencies. It should feel closer to a calm workspace than an enterprise ERP: fast overview, obvious next actions, and workflows that connect customers, colleagues, and projects.
+AgencyOS is an open-source consulting agency operating system. It should combine the useful core of:
 
-## Core workflows
+- MOCO-style agency project and budget control
+- Trello-style ticket boards
+- Clockify-style time tracking and reports
 
-### 1. Onboard the agency
+The product should stay simple: projects are the center, tickets define work, colleagues are assigned, time is logged, and reports show whether delivery is healthy.
 
-- User sees a guided tour on first visit.
-- Tour explains dashboard, project creation, team capacity, customers, and workflow standards.
-- User can restart or dismiss onboarding at any time.
-- First-time users should know what to do within 2 minutes.
+## Current MVP slice: Agency operations core
 
-### 2. Manage customers
+### Navigation
 
-- Create and update customers with name, segment, owner, health, revenue target, notes.
-- Customer health should be visible across the product.
-- Customers are the parent object for projects.
+- Dashboard
+- Projects
+- Tickets
+- Time
+- Reports
+- Customers
+- Team
 
-### 3. Manage colleagues
+The previous Workflow tab is removed from the product UI. Development workflow remains in docs.
 
-- Create and update colleagues with role, weekly capacity, billable target, skills/focus, and active status.
-- Show capacity pressure so staffing decisions are easy.
-- Project leads should come from colleagues.
+### Core workflows
 
-### 4. Manage projects
+1. **Project cockpit**
+   - Open a project and see customer, lead, status, budget, logged time, billable time, earned revenue, open tickets, board, and project timesheet.
+   - Add tickets and log time from the project page.
 
-- Create and update projects with customer, lead, status, budget, progress, start/end dates, and next action.
-- Project status values: Planning, On track, At risk, Complete.
-- Dashboard should surface at-risk work, deadlines, budget, and progress.
+2. **Ticket workflow**
+   - Create tickets linked to projects.
+   - Assign a colleague.
+   - Track status through Backlog, Todo, In progress, Review, Done.
+   - Store priority, estimate, due date, and description.
 
-### 5. Plan delivery
+3. **Time workflow**
+   - Log manual time against project and optional ticket.
+   - Track colleague, date, hours, billable flag, and note.
+   - Project/report totals update from time entries.
 
-- Calculate active projects, average utilization, pipeline/budget value, and customer count from real app state.
-- Provide filters/search across customers, projects, and colleagues.
-- Support lightweight weekly review: “what needs attention?”
+4. **Reporting workflow**
+   - Show total time, billable time, project revenue, and per-project breakdown.
+   - Export time report as CSV.
+
+5. **Team/customer workflow**
+   - Customers own projects.
+   - Team members have roles, capacity, rates, assigned tickets, and logged time.
 
 ## MVP acceptance criteria
 
-- Navigation switches between Overview, Projects, Colleagues, Customers, and Workflow.
-- User can create projects, colleagues, and customers from the UI.
-- Data persists in localStorage for now.
-- Dashboard metrics derive from saved data, not hardcoded counters.
-- Onboarding tour exists and can be restarted.
-- Workflow docs explain branch → spec → implementation → test → PR → merge.
+- User can create projects, tickets, time entries, customers, and team members.
+- Project page includes a working ticket board and project time list.
+- Tickets can be moved between statuses.
+- Time can be logged against a project and optionally a ticket.
+- Reports derive from saved time entries, not static numbers.
+- CSV export works for time entries.
+- Data persists locally in the browser for the prototype.
 
-## Future architecture
+## Open-source architecture direction
 
-- Replace localStorage with API + database.
-- Add auth, workspaces, roles, audit log.
-- Add time tracking, invoices, retainers, reports.
-- Add GitHub-backed issue/PR templates for open-source collaboration.
+Move toward a boring modular monolith:
+
+- Frontend/full-stack: Next.js or equivalent React full-stack framework
+- Database: PostgreSQL
+- ORM: Prisma or Drizzle
+- Auth: Auth.js or similar
+- Deployment: Docker Compose for local app + Postgres, Vercel for hosted demo
+- Modules: customers, projects, tickets, time, reports, team, settings
+
+## Defer
+
+- Invoicing
+- Expenses
+- Quotes/proposals
+- Live stopwatch
+- Calendar integrations
+- Client portal
+- Advanced permissions
+- Multi-currency/accounting
+- AI features
+- Mobile app
+- Heavy onboarding/tutorials until product workflow is solid

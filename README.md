@@ -1,19 +1,20 @@
 # AgencyOS
 
-AgencyOS is an open-source project management product for consulting agencies: simple, aesthetic, and focused on the essentials — customers, colleagues, projects, budgets, capacity, and account health.
+AgencyOS is an open-source consulting agency operating system: projects, tickets, team assignments, time tracking, customers, and reports in one calm workspace.
 
-The product direction is inspired by focused agency ERP tools like MOCO: fewer screens, strong hierarchy, fast overview, and calm daily operations.
+The product direction is inspired by focused agency tools like MOCO, Trello, and Clockify — but shaped for consulting teams that need delivery clarity without enterprise clutter.
 
 ## Current product slice
 
-- **Functional navigation**: Overview, Projects, Colleagues, Customers, and Workflow workspaces.
-- **Project management**: create projects with customer, lead, status, budget, progress, dates, and next action.
-- **Colleague management**: create colleagues with role, focus, capacity, and billable target.
-- **Customer management**: create accounts with owner, health, segment, revenue target, and notes.
-- **Persistent demo data**: records are saved to `localStorage` for the current browser.
-- **Agency dashboard**: metrics derive from saved product data.
-- **Onboarding/tutorial**: guided first-run tour plus restartable training from the sidebar.
-- **Open-source workflow**: branch/spec/test/PR/merge/deploy guidance built into the app and docs.
+- **Dashboard**: active projects, open tickets, billable hours, revenue, urgent work, recent time.
+- **Projects**: project cockpit with customer, lead, status, budget, board, time, and quick actions.
+- **Tickets**: create assignable tickets with status, priority, estimate, due date, and description.
+- **Ticket board**: Backlog → Todo → In progress → Review → Done.
+- **Time management**: log manual billable/internal time against projects and optional tickets.
+- **Reports**: project hours, billable hours, earned revenue, and CSV export.
+- **Customers**: account list connected to delivery.
+- **Team**: colleagues, capacity, rates, open tickets, and logged time.
+- **Persistent prototype data**: saved to `localStorage` for the current browser.
 
 ## Getting started
 
@@ -40,18 +41,22 @@ npm run preview
 ## Product docs
 
 - [Product spec](docs/product-spec.md)
+- [Architecture](docs/architecture.md)
 - [Development workflow](docs/development-workflow.md)
+- [Agentic system](docs/agents/agentic-system.md)
 
 ## Product direction
 
 Next useful modules:
 
-1. Edit/delete flows and richer detail pages
-2. Authentication and multi-agency workspaces
-3. API + database persistence
-4. Time tracking and billable utilization reports
-5. Retainers, budgets, invoices, and accounting exports
-6. GitHub issue templates, PR template, and contribution guide
+1. Edit/delete/detail drawers for projects, tickets, and time entries
+2. Route-based pages and component split
+3. PostgreSQL schema, migrations, and seed data
+4. Authentication and multi-agency workspaces
+5. Project member roles and permissions
+6. Live timer, weekly timesheet, approvals
+7. Budget burn, utilization, and profitability reports
+8. GitHub-backed CI/CD and public contributor docs
 
 ## License
 
