@@ -1,0 +1,21 @@
+<svg width="1400" height="520" viewBox="0 0 1400 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="520" rx="36" fill="#17201B"/>
+  <circle cx="1180" cy="70" r="260" fill="#A6EF82" opacity="0.12"/>
+  <text x="70" y="90" font-family="Inter, system-ui" font-size="48" font-weight="900" letter-spacing="-2" fill="white">Simple open-source architecture</text>
+  <text x="70" y="130" font-family="Inter, system-ui" font-size="20" fill="#DCE8DF">A boring modular monolith: easy to run locally, easy to contribute to, easy to self-host.</text>
+  <g font-family="Inter, system-ui" font-weight="850">
+    <rect x="90" y="215" width="225" height="110" rx="26" fill="#F8F6EF"/><text x="202" y="278" text-anchor="middle" font-size="24" fill="#17201B">Next.js App Router</text>
+    <path d="M325 270H420" stroke="#A6EF82" stroke-width="8" stroke-linecap="round"/>
+    <rect x="435" y="215" width="225" height="110" rx="26" fill="#F8F6EF"/><text x="548" y="278" text-anchor="middle" font-size="24" fill="#17201B">Auth.js</text>
+    <path d="M670 270H765" stroke="#A6EF82" stroke-width="8" stroke-linecap="round"/>
+    <rect x="780" y="215" width="225" height="110" rx="26" fill="#F8F6EF"/><text x="892" y="278" text-anchor="middle" font-size="24" fill="#17201B">Prisma</text>
+    <path d="M1015 270H1110" stroke="#A6EF82" stroke-width="8" stroke-linecap="round"/>
+    <rect x="1125" y="215" width="225" height="110" rx="26" fill="#F8F6EF"/><text x="1238" y="278" text-anchor="middle" font-size="24" fill="#17201B">PostgreSQL</text>
+  </g>
+  <g font-family="Inter, system-ui" font-size="17" fill="#DCE8DF">
+    <text x="95" y="395">• Workspace-scoped multi-tenancy</text>
+    <text x="430" y="395">• Auth identity + memberships</text>
+    <text x="780" y="395">• Typed schema + seed data</text>
+    <text x="1120" y="395">• Docker Compose local dev</text>
+  </g>
+</svg>

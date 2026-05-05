@@ -1,0 +1,69 @@
+<svg width="1400" height="720" viewBox="0 0 1400 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17201B"/>
+      <stop offset="0.55" stop-color="#254134"/>
+      <stop offset="1" stop-color="#F5F1E8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1120 90) rotate(128) scale(560 420)">
+      <stop stop-color="#A6EF82" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#A6EF82" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#0C120F" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="720" rx="42" fill="url(#bg)"/>
+  <rect width="1400" height="720" rx="42" fill="url(#glow)"/>
+  <circle cx="1120" cy="155" r="150" fill="#FF6B35" opacity="0.16"/>
+  <circle cx="1010" cy="610" r="220" fill="#A6EF82" opacity="0.12"/>
+  <g transform="translate(92 92)">
+    <rect width="88" height="88" rx="28" fill="#F8F6EF"/>
+    <text x="44" y="58" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui" font-weight="900" font-size="42" fill="#17201B">A</text>
+    <text x="0" y="152" font-family="Inter, ui-sans-serif, system-ui" font-size="28" font-weight="800" fill="#A6EF82" letter-spacing="4">AGENCYOS</text>
+    <text x="0" y="245" font-family="Inter, ui-sans-serif, system-ui" font-size="82" font-weight="900" fill="#FFFFFF" letter-spacing="-5">The open-source</text>
+    <text x="0" y="330" font-family="Inter, ui-sans-serif, system-ui" font-size="82" font-weight="900" fill="#FFFFFF" letter-spacing="-5">operating system</text>
+    <text x="0" y="415" font-family="Inter, ui-sans-serif, system-ui" font-size="82" font-weight="900" fill="#FFFFFF" letter-spacing="-5">for consulting teams.</text>
+    <text x="0" y="482" font-family="Inter, ui-sans-serif, system-ui" font-size="28" font-weight="500" fill="#DCE8DF">Customers → projects → tickets → team → time → reports.</text>
+    <g transform="translate(0 530)">
+      <rect width="190" height="54" rx="18" fill="#FF6B35"/>
+      <text x="95" y="35" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="900" fill="white">Live demo</text>
+      <rect x="210" width="234" height="54" rx="18" fill="white" fill-opacity="0.13" stroke="white" stroke-opacity="0.18"/>
+      <text x="327" y="35" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="850" fill="white">MIT open source</text>
+    </g>
+  </g>
+  <g filter="url(#shadow)" transform="translate(745 115)">
+    <rect width="560" height="450" rx="30" fill="#FFFDF7"/>
+    <rect x="26" y="24" width="508" height="62" rx="20" fill="#F5F1E8"/>
+    <circle cx="58" cy="55" r="16" fill="#17201B"/>
+    <rect x="90" y="43" width="160" height="14" rx="7" fill="#17201B" opacity="0.86"/>
+    <rect x="382" y="40" width="118" height="22" rx="11" fill="#FF6B35"/>
+    <g transform="translate(26 116)">
+      <rect width="154" height="92" rx="22" fill="#17201B"/>
+      <rect x="20" y="22" width="54" height="12" rx="6" fill="#A6EF82"/>
+      <rect x="20" y="46" width="92" height="20" rx="10" fill="#FFFFFF"/>
+      <rect x="188" width="154" height="92" rx="22" fill="#F8F6EF" stroke="#EAE3D5"/>
+      <rect x="208" y="22" width="54" height="12" rx="6" fill="#FF6B35"/>
+      <rect x="208" y="46" width="86" height="20" rx="10" fill="#17201B"/>
+      <rect x="376" width="132" height="92" rx="22" fill="#E5F7DB"/>
+      <rect x="396" y="22" width="54" height="12" rx="6" fill="#276E32"/>
+      <rect x="396" y="46" width="74" height="20" rx="10" fill="#17201B"/>
+    </g>
+    <g transform="translate(26 238)">
+      <rect width="508" height="172" rx="24" fill="#F8F6EF" stroke="#EAE3D5"/>
+      <text x="24" y="42" font-family="Inter, ui-sans-serif, system-ui" font-size="18" font-weight="900" fill="#17201B">Project cockpit</text>
+      <rect x="24" y="68" width="95" height="74" rx="16" fill="#FFFDF7"/>
+      <rect x="135" y="68" width="95" height="74" rx="16" fill="#FFFDF7"/>
+      <rect x="246" y="68" width="95" height="74" rx="16" fill="#FFFDF7"/>
+      <rect x="357" y="68" width="95" height="74" rx="16" fill="#FFFDF7"/>
+      <rect x="40" y="88" width="55" height="10" rx="5" fill="#738076"/>
+      <rect x="40" y="111" width="63" height="14" rx="7" fill="#FF6B35"/>
+      <rect x="151" y="88" width="55" height="10" rx="5" fill="#738076"/>
+      <rect x="151" y="111" width="50" height="14" rx="7" fill="#17201B"/>
+      <rect x="262" y="88" width="55" height="10" rx="5" fill="#738076"/>
+      <rect x="262" y="111" width="48" height="14" rx="7" fill="#8FD66A"/>
+      <rect x="373" y="88" width="55" height="10" rx="5" fill="#738076"/>
+      <rect x="373" y="111" width="58" height="14" rx="7" fill="#17201B"/>
+    </g>
+  </g>
+</svg>
