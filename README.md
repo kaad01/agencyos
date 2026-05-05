@@ -23,6 +23,17 @@ npm install
 npm run dev
 ```
 
+## Local database foundation
+
+Loop 1 includes a Postgres Docker Compose service and environment template for the planned Next.js + Prisma + Auth.js migration. The current Vite prototype does not require the database yet.
+
+```bash
+cp .env.example .env.local
+docker compose up -d postgres
+```
+
+See [local database setup](docs/local-database.md).
+
 ## Quality gates
 
 ```bash

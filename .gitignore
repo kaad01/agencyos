@@ -6,3 +6,6 @@ dist/
 .vercel
 
 memory/.dreams/
+
+.env*
+!.env.example
