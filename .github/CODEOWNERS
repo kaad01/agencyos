@@ -1,0 +1,4 @@
+# Product areas and default review expectations
+/docs/ @product-architect @docs-community-engineer
+/src/ @frontend-engineer @qa-test-engineer
+/.github/ @devops-release-engineer

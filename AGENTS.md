@@ -216,3 +216,9 @@ This is a starting point. Add your own conventions, style, and rules as you figu
 ## Related
 
 - [Default AGENTS.md](/reference/AGENTS.default)
+
+## AgencyOS Delegation Rule
+
+For AgencyOS work, Clove should stay as Kaan's main conversation partner and delegate non-trivial work to sub-agents when useful. Prefer isolated sub-agents for product architecture, UX, frontend implementation, QA/testing, DevOps/release, and docs/community tasks. Synthesize results before replying to Kaan.
+
+Use the local `delegate-agencyos-work` skill when it is available.

@@ -44,3 +44,25 @@ AgencyOS should be built like a serious open-source product, even while small.
 
 ## Risks / follow-ups
 ```
+
+## Agentic workflow
+
+AgencyOS uses an agentic development model:
+
+- Clove remains the main coordinator and conversation partner.
+- Specialized sub-agents are delegated scoped tasks.
+- Sub-agents return summaries, changed files, checks, blockers, and next steps.
+- Clove reviews and integrates the results before finalizing.
+
+### Standard delegation split
+
+- Product discovery → Product Architect
+- UX/onboarding → UX/UI Designer
+- React implementation → Frontend Engineer
+- Tests/release gates → QA/Test Engineer
+- Vercel/GitHub/CI → DevOps/Release Engineer
+- README/tutorial/community → Documentation/Community Engineer
+
+### Why this matters
+
+Kaan can keep discussing priorities, ideas, and changes with Clove while implementation or research runs in the background. This keeps the product conversation fast without losing engineering discipline.
