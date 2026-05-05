@@ -141,7 +141,7 @@ export function App() {
       <section className="workspace">
         <header className="topbar">
           <div><p className="eyebrow">{view}</p><h1>{headlineFor(view)}</h1></div>
-          <div className="actions"><label className="search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, tickets, people..." /></label><button onClick={() => setModal(defaultModalFor(view))}><Plus size={18}/>{ctaFor(view)}</button></div>
+          <div className="actions"><label className="search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, tickets, people..." /></label><button onClick={() => setModal(defaultModalFor(view))} aria-label={`${ctaFor(view)}`}><Plus size={18} aria-hidden="true"/>{ctaFor(view)}</button></div>
         </header>
 
         {view === 'Dashboard' && <Dashboard data={data} metrics={metrics} onSelectProject={(id) => { setSelectedProjectId(id); setView('Projects'); }} onNewProject={() => setModal('project')} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onOpenReports={() => setView('Reports')} />}
