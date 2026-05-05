@@ -122,6 +122,33 @@ export function projectRevenue(data: AppData, projectId: string) {
   return projectBillableHours(data, projectId) * project.hourlyRate;
 }
 
+export function projectBudgetUsedPercent(data: AppData, projectId: string) {
+  const project = data.projects.find((item) => item.id === projectId);
+  if (!project || project.budget <= 0) return 0;
+  return Math.round((projectRevenue(data, projectId) / project.budget) * 100);
+}
+
+export function customerProjects(data: AppData, customerId: string) {
+  return data.projects.filter((project) => project.customerId === customerId);
+}
+
+export function customerHours(data: AppData, customerId: string) {
+  const projectIds = new Set(customerProjects(data, customerId).map((project) => project.id));
+  return data.timeEntries.filter((entry) => projectIds.has(entry.projectId)).reduce((sum, entry) => sum + entry.hours, 0);
+}
+
+export function customerRevenue(data: AppData, customerId: string) {
+  return customerProjects(data, customerId).reduce((sum, project) => sum + projectRevenue(data, project.id), 0);
+}
+
+export function colleagueLoggedHours(data: AppData, colleagueId: string) {
+  return data.timeEntries.filter((entry) => entry.colleagueId === colleagueId).reduce((sum, entry) => sum + entry.hours, 0);
+}
+
+export function colleagueOpenTicketEstimate(data: AppData, colleagueId: string) {
+  return data.tickets.filter((ticket) => ticket.assigneeId === colleagueId && ticket.status !== 'Done').reduce((sum, ticket) => sum + ticket.estimateHours, 0);
+}
+
 export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }
