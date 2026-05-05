@@ -1,12 +1,18 @@
 ## Summary
 
-## Product requirement / spec
+-
 
-## Screenshots or demo
+## Screenshots / GIFs
 
-## Tests
-- [ ] npm run lint
-- [ ] npm run test
-- [ ] npm run build
+Add visual proof for UI changes when relevant.
 
-## Risks / follow-ups
+## Checks
+
+- [ ] `npm run db:validate`
+- [ ] `npm run lint`
+- [ ] `npm run test`
+- [ ] `npm run build`
+
+## Notes
+
+Migration/config/deployment notes, if any.
