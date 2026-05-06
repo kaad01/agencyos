@@ -2,7 +2,7 @@ name: Vercel Preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, closed]
 
 permissions:
   contents: read
@@ -15,7 +15,8 @@ concurrency:
 
 jobs:
   preview:
-    if: ${{ !github.event.pull_request.draft }}
+    name: preview
+    if: ${{ github.event.action != 'closed' && !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'needs-live-review') }}
     runs-on: ubuntu-latest
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -98,6 +99,7 @@ jobs:
           - Preview deployment: {os.environ['DEPLOY_URL']}
           - Production/live after merge: {os.environ['PRODUCTION_URL']}
           - Smoke check: {os.environ['SMOKE_RESULT']}
+          - Cleanup: Preview deployment is removed automatically when the PR is closed or merged.
 
           """.replace('\n          ', '\n').strip() + "\n\n"
 
@@ -126,5 +128,43 @@ jobs:
           Preview deployment: $DEPLOY_URL
 
           Smoke check: $SMOKE_RESULT
+          Cleanup: this preview is removed automatically when the PR is closed or merged.
           EOF
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/preview-comment.md
+
+  cleanup:
+    name: cleanup
+    if: ${{ github.event.action == 'closed' }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Remove PR preview deployment
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "Missing VERCEL_TOKEN; cannot remove preview deployment." >&2
+            exit 1
+          fi
+
+          PREVIEW_URL="$(python3 - <<'PY'
+          import os, re
+          body = os.environ.get('PR_BODY') or ''
+          match = re.search(r'Preview deployment:\s*(https://[^\s]+\.vercel\.app)', body)
+          print(match.group(1) if match else '')
+          PY
+          )"
+
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "No preview deployment URL found in PR body; nothing to remove."
+            exit 0
+          fi
+
+          npx vercel remove "$PREVIEW_URL" --yes --token "$VERCEL_TOKEN"
+          echo "Removed preview deployment: $PREVIEW_URL"

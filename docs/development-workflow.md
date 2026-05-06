@@ -16,7 +16,7 @@ AgencyOS should be built like a serious open-source product, even while small.
 4. **Branch**: Create a focused branch from latest `master`.
 5. **Implement**: Keep changes small and reviewable; avoid broad rewrites.
 6. **Test**: Run lint/build/unit tests before opening PR.
-7. **Deploy preview**: Create a Vercel preview deployment for the branch whenever runtime/UI behavior changed.
+7. **Deploy preview when human review is needed**: Add the `needs-live-review` label and create a Vercel preview deployment only when Kaan needs to test/approve the branch before merge.
 8. **PR**: Include summary, live preview link, production/live link, screenshots/recording for UI, test evidence, and known tradeoffs.
 9. **Review**: Check UX simplicity, data correctness, accessibility, and maintainability.
 10. **Human checkpoint — merge**: Kaan explicitly approves major UX direction, backend/data-model changes, auth/security, billing, or architecture changes before merge.
@@ -32,7 +32,8 @@ AgencyOS should be built like a serious open-source product, even while small.
 - Core path has at least one test where practical.
 - `npm run lint`, `npm run test`, and `npm run build` pass.
 - Product decision is captured in the PR or a follow-up issue.
-- PR includes a live test link for Kaan: preview deployment before merge when possible, plus production/live URL after merge.
+- PR includes a live test link for Kaan when the branch needs product-owner review: preview deployment before merge, plus production/live URL after merge.
+- Preview deployments are cleaned up automatically when the PR is closed or merged.
 - Risky decisions have explicit human approval before merge.
 - README or docs updated if behavior changes.
 
@@ -76,9 +77,10 @@ Every meaningful PR should have a small quality review before merge:
 ## Summary
 
 ## Live test link
-- Preview deployment:
+- Preview deployment, only when this PR needs Kaan/product-owner review:
 - Production/live after merge: https://workspace-one-blush-79.vercel.app
 - Smoke check result:
+- Cleanup: preview deployments are removed automatically when the PR is closed or merged.
 
 ## Product requirement
 

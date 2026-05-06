@@ -10,7 +10,7 @@ The loop should produce:
 
 - GitHub issues with clear acceptance criteria
 - focused branches
-- readable PRs with live test links
+- readable PRs with live test links only when Kaan/product-owner review is needed
 - automated checks
 - QA/review feedback
 - product decisions informed by comparable tools
@@ -83,8 +83,8 @@ Output:
 6. Create a focused branch.
 7. Implement the smallest valuable slice.
 8. Run relevant checks.
-9. Create a Vercel preview deployment for runtime/UI changes and smoke-check that the URL responds.
-10. Open a readable PR using the AgencyOS PR readability skill; include the preview deployment URL and the production/live URL.
+9. If Kaan/product-owner review is needed before merge, add the `needs-live-review` label so CI/CD creates a Vercel preview deployment and smoke-checks it.
+10. Open a readable PR using the AgencyOS PR readability skill; include the preview deployment URL when required and always include the production/live URL.
 11. Ask QA/review agents to critique the PR.
 12. Update PR or create follow-up issues from review.
 13. Merge only if CI passes and the merge policy allows it.
@@ -113,7 +113,7 @@ Each meaningful PR should include evidence for:
 
 - local checks: `npm run db:validate` when relevant, `npm run lint`, `npm run test`, `npm run build`
 - UI proof for visual work: screenshot, GIF, or clear reviewer guide
-- live test link: Vercel preview URL before merge when available, plus production/live URL after merge
+- live test link: Vercel preview URL before merge only when `needs-live-review` is used, plus production/live URL after merge
 - product fit: why this matters for consulting agencies
 - QA result: blocker/no-blocker review or follow-up issues
 - rollback/risk: what could break and how to revert
@@ -177,6 +177,7 @@ Allowed automatically:
 - run checks
 - update docs/issues
 - deploy preview/production when Kaan explicitly asks or for already-approved safe changes
+- delete preview deployments automatically when PRs are closed or merged
 
 Auto-merge allowed after Kaan approval on May 5, 2026:
 
