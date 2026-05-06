@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
   issues: write
 
 concurrency:
@@ -79,7 +79,7 @@ jobs:
 
       - name: Update PR live test link section
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PR_WRITE_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
@@ -116,7 +116,7 @@ jobs:
 
       - name: Comment preview link
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PR_WRITE_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
