@@ -250,6 +250,24 @@ export function weeklyTimesheetByColleague(data: AppData, date: string) {
   });
 }
 
+export type TimesheetFilters = {
+  weekDate: string;
+  projectId?: string;
+  colleagueId?: string;
+};
+
+export function filterTimeEntriesForTimesheet(data: AppData, filters: TimesheetFilters) {
+  const start = weekStartDate(filters.weekDate);
+  const end = addDays(start, 6);
+
+  return data.timeEntries.filter((entry) => {
+    if (entry.date < start || entry.date > end) return false;
+    if (filters.projectId && entry.projectId !== filters.projectId) return false;
+    if (filters.colleagueId && entry.colleagueId !== filters.colleagueId) return false;
+    return true;
+  });
+}
+
 export type ReportFilters = {
   period: ReportPeriod;
   customerId?: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -119,6 +119,13 @@ describe('AgencyOS operations metrics', () => {
 
     expect(moved.tickets.map((ticket) => ticket.id)).toEqual(['tic-brief', 'tic-assets', 'tic-scope', 'tic-interviews']);
     expect(moved.tickets.at(-1)?.status).toBe('In progress');
+  });
+
+  it('filters weekly timesheet time by week, project, and person', () => {
+    expect(filterTimeEntriesForTimesheet(initialData, { weekDate: '2026-05-06' }).map((entry) => entry.id)).toEqual(['time-1', 'time-2', 'time-3', 'time-4']);
+    expect(filterTimeEntriesForTimesheet(initialData, { weekDate: '2026-05-06', projectId: 'proj-brand' }).map((entry) => entry.id)).toEqual(['time-1', 'time-2']);
+    expect(filterTimeEntriesForTimesheet(initialData, { weekDate: '2026-05-06', colleagueId: 'col-leo' }).map((entry) => entry.id)).toEqual(['time-4']);
+    expect(filterTimeEntriesForTimesheet(initialData, { weekDate: '2026-05-13' })).toHaveLength(0);
   });
 
   it('filters report time by period, customer, project, and person', () => {
