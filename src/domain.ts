@@ -193,6 +193,40 @@ export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }
 
+export function weekStartDate(date: string) {
+  const current = new Date(`${date}T00:00:00.000Z`);
+  const day = current.getUTCDay() || 7;
+  current.setUTCDate(current.getUTCDate() - day + 1);
+  return current.toISOString().slice(0, 10);
+}
+
+export function addDays(date: string, days: number) {
+  const current = new Date(`${date}T00:00:00.000Z`);
+  current.setUTCDate(current.getUTCDate() + days);
+  return current.toISOString().slice(0, 10);
+}
+
+export function timeEntriesForWeek(data: AppData, date: string) {
+  const start = weekStartDate(date);
+  const end = addDays(start, 6);
+  return data.timeEntries.filter((entry) => entry.date >= start && entry.date <= end);
+}
+
+export function weeklyTimesheetByColleague(data: AppData, date: string) {
+  const weekEntries = timeEntriesForWeek(data, date);
+  return data.colleagues.map((person) => {
+    const personEntries = weekEntries.filter((entry) => entry.colleagueId === person.id);
+    const total = personEntries.reduce((sum, entry) => sum + entry.hours, 0);
+    const billable = personEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+    const dailyHours = Array.from({ length: 7 }, (_, index) => {
+      const day = addDays(weekStartDate(date), index);
+      return personEntries.filter((entry) => entry.date === day).reduce((sum, entry) => sum + entry.hours, 0);
+    });
+
+    return { colleague: person, dailyHours, total, billable, internal: total - billable };
+  });
+}
+
 export function moveTicketOnBoard(data: AppData, ticketId: string, status: TicketStatus, beforeTicketId?: string): AppData {
   const movedTicket = data.tickets.find((ticket) => ticket.id === ticketId);
   if (!movedTicket) return data;

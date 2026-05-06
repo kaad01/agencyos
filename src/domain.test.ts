@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -52,6 +52,21 @@ describe('AgencyOS operations metrics', () => {
     expect(moved.tickets.map((ticket) => ticket.id).slice(0, 2)).toEqual(['tic-assets', 'tic-brief']);
     expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.status).toBe('In progress');
     expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.assigneeId).toBe('col-sara');
+  });
+
+  it('groups time entries into weekly colleague timesheets', () => {
+    expect(weekStartDate('2026-05-06')).toBe('2026-05-04');
+    expect(addDays('2026-05-04', 6)).toBe('2026-05-10');
+    expect(timeEntriesForWeek(initialData, '2026-05-06')).toHaveLength(4);
+
+    const rows = weeklyTimesheetByColleague(initialData, '2026-05-06');
+    const mina = rows.find((row) => row.colleague.id === 'col-mina');
+    const leo = rows.find((row) => row.colleague.id === 'col-leo');
+
+    expect(mina?.dailyHours).toEqual([0, 3.5, 0, 0, 0, 0, 0]);
+    expect(mina?.total).toBe(3.5);
+    expect(mina?.billable).toBe(3.5);
+    expect(leo?.internal).toBe(1.5);
   });
 
   it('drops tickets at the end of the target status when no card target is provided', () => {
