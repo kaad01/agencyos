@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
+import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -21,6 +21,12 @@ describe('AgencyOS operations metrics', () => {
     expect(projectRevenue(initialData, 'proj-brand')).toBe(660);
     expect(projectBudgetUsedPercent(initialData, 'proj-brand')).toBe(2);
     expect(ticketLoggedHours(initialData, 'tic-scope')).toBe(5.5);
+  });
+
+  it('calculates profitability-lite reporting signals', () => {
+    expect(projectNonBillableHours(initialData, 'proj-erp')).toBe(1.5);
+    expect(projectEffectiveRate(initialData, 'proj-erp')).toBe(80);
+    expect(projectBudgetRemaining(initialData, 'proj-erp')).toBe(17560);
   });
 
   it('connects customer and colleague screens to delivery work', () => {
