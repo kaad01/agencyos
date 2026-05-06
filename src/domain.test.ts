@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -27,6 +27,24 @@ describe('AgencyOS operations metrics', () => {
     expect(projectNonBillableHours(initialData, 'proj-erp')).toBe(1.5);
     expect(projectEffectiveRate(initialData, 'proj-erp')).toBe(80);
     expect(projectBudgetRemaining(initialData, 'proj-erp')).toBe(17560);
+  });
+
+  it('compares project logged time against ticket estimates', () => {
+    expect(projectEstimatedHours(initialData, 'proj-brand')).toBe(13);
+    expect(projectRemainingEstimateHours(initialData, 'proj-brand')).toBe(7.5);
+    expect(projectEstimateUsedPercent(initialData, 'proj-brand')).toBe(42);
+    expect(projectDeliverySignal(initialData, 'proj-brand')).toBe('On track');
+
+    const overEstimate = {
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-extra-scope', projectId: 'proj-brand', ticketId: 'tic-brief', colleagueId: 'col-mina', date: '2026-05-06', hours: 8, billable: true, note: 'Extra scope' },
+      ],
+    };
+
+    expect(projectEstimateUsedPercent(overEstimate, 'proj-brand')).toBe(104);
+    expect(projectDeliverySignal(overEstimate, 'proj-brand')).toBe('Over estimate');
   });
 
   it('keeps internal consulting time in workload totals without inflating revenue', () => {

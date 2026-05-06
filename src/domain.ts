@@ -118,6 +118,28 @@ export function projectBillableHours(data: AppData, projectId: string) {
   return data.timeEntries.filter((entry) => entry.projectId === projectId && entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
 }
 
+export function projectEstimatedHours(data: AppData, projectId: string) {
+  return data.tickets.filter((ticket) => ticket.projectId === projectId).reduce((sum, ticket) => sum + ticket.estimateHours, 0);
+}
+
+export function projectRemainingEstimateHours(data: AppData, projectId: string) {
+  return Math.max(0, projectEstimatedHours(data, projectId) - projectHours(data, projectId));
+}
+
+export function projectEstimateUsedPercent(data: AppData, projectId: string) {
+  const estimate = projectEstimatedHours(data, projectId);
+  if (estimate <= 0) return 0;
+  return Math.round((projectHours(data, projectId) / estimate) * 100);
+}
+
+export function projectDeliverySignal(data: AppData, projectId: string) {
+  const used = projectEstimateUsedPercent(data, projectId);
+  const openTickets = data.tickets.filter((ticket) => ticket.projectId === projectId && ticket.status !== 'Done').length;
+  if (used >= 100 && openTickets > 0) return 'Over estimate';
+  if (used >= 75) return 'Watch scope';
+  return 'On track';
+}
+
 export function projectRevenue(data: AppData, projectId: string) {
   const project = data.projects.find((item) => item.id === projectId);
   if (!project) return 0;
