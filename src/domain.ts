@@ -129,6 +129,22 @@ export function projectBudgetUsedPercent(data: AppData, projectId: string) {
   return Math.round((projectRevenue(data, projectId) / project.budget) * 100);
 }
 
+export function projectBudgetRemaining(data: AppData, projectId: string) {
+  const project = data.projects.find((item) => item.id === projectId);
+  if (!project) return 0;
+  return Math.max(0, project.budget - projectRevenue(data, projectId));
+}
+
+export function projectNonBillableHours(data: AppData, projectId: string) {
+  return data.timeEntries.filter((entry) => entry.projectId === projectId && !entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+}
+
+export function projectEffectiveRate(data: AppData, projectId: string) {
+  const hours = projectHours(data, projectId);
+  if (!hours) return 0;
+  return Math.round(projectRevenue(data, projectId) / hours);
+}
+
 export function customerProjects(data: AppData, customerId: string) {
   return data.projects.filter((project) => project.customerId === customerId);
 }
