@@ -142,6 +142,11 @@ export function customerRevenue(data: AppData, customerId: string) {
   return customerProjects(data, customerId).reduce((sum, project) => sum + projectRevenue(data, project.id), 0);
 }
 
+export function customerTickets(data: AppData, customerId: string) {
+  const projectIds = new Set(customerProjects(data, customerId).map((project) => project.id));
+  return data.tickets.filter((ticket) => projectIds.has(ticket.projectId));
+}
+
 export function colleagueLoggedHours(data: AppData, colleagueId: string) {
   return data.timeEntries.filter((entry) => entry.colleagueId === colleagueId).reduce((sum, entry) => sum + entry.hours, 0);
 }
