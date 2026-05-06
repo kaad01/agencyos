@@ -5,9 +5,11 @@ import { addDays, byId, calculateMetrics, colleagueBillableRatio, colleagueDeliv
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
 type DragTicket = { id: string; status: TicketStatus };
+type ActiveTimer = { projectId: string; ticketId: string; colleagueId: string; billable: boolean; note: string; startedAt: string };
 type ReportPeriod = 'all' | '7' | '30';
 
 const storageKey = 'agencyos.ops.v1';
+const activeTimerKey = 'agencyos.activeTimer.v1';
 const healthOptions: CustomerHealth[] = ['Excellent', 'Healthy', 'Needs care', 'New'];
 const reportPeriods: Record<ReportPeriod, string> = { all: 'All time', '7': 'Last 7 days', '30': 'Last 30 days' };
 
@@ -17,6 +19,15 @@ function loadData(): AppData {
     return raw ? { ...initialData, ...JSON.parse(raw) as AppData } : initialData;
   } catch {
     return initialData;
+  }
+}
+
+function loadActiveTimer(): ActiveTimer | null {
+  try {
+    const raw = localStorage.getItem(activeTimerKey);
+    return raw ? JSON.parse(raw) as ActiveTimer : null;
+  } catch {
+    return null;
   }
 }
 
@@ -32,6 +43,19 @@ function todayPlus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function timerDurationHours(startedAt: string, now = Date.now()) {
+  const elapsedHours = Math.max(0, (now - new Date(startedAt).getTime()) / 36e5);
+  return Math.max(0.25, Math.round(elapsedHours * 4) / 4);
+}
+
+function elapsedTimerLabel(startedAt: string, now = Date.now()) {
+  const elapsedSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
 }
 
 function filterTimeEntriesByPeriod(entries: TimeEntry[], period: ReportPeriod) {
@@ -51,8 +75,19 @@ export function App() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(() => initialData.customers[0]?.id ?? '');
   const [modal, setModal] = useState<Modal>(null);
   const [editingTimeEntryId, setEditingTimeEntryId] = useState<string | null>(null);
+  const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(() => loadActiveTimer());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => localStorage.setItem(storageKey, JSON.stringify(data)), [data]);
+  useEffect(() => {
+    if (activeTimer) localStorage.setItem(activeTimerKey, JSON.stringify(activeTimer));
+    else localStorage.removeItem(activeTimerKey);
+  }, [activeTimer]);
+  useEffect(() => {
+    if (!activeTimer) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [activeTimer]);
 
   const metrics = useMemo(() => calculateMetrics(data), [data]);
   const safeSelectedProjectId = data.projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : data.projects[0]?.id ?? '';
@@ -98,6 +133,46 @@ export function App() {
     setData((current) => ({ ...current, tickets: [ticket, ...current.tickets] }));
     setSelectedProjectId(ticket.projectId);
     setModal(null);
+  }
+
+  function startTimer(projectId: string, ticketId = '') {
+    if (activeTimer) return;
+    const project = byId(data.projects, projectId);
+    const ticket = byId(data.tickets, ticketId);
+    const colleagueId = ticket?.assigneeId ?? project?.leadId ?? data.colleagues[0]?.id ?? '';
+    if (!project || !colleagueId) return;
+    setActiveTimer({
+      projectId: project.id,
+      ticketId,
+      colleagueId,
+      billable: true,
+      note: ticket ? `Timer: ${ticket.title}` : `Timer: ${project.name}`,
+      startedAt: new Date().toISOString(),
+    });
+    setSelectedProjectId(project.id);
+  }
+
+  function stopTimer() {
+    if (!activeTimer) return;
+    const entry: TimeEntry = {
+      id: makeId('time'),
+      projectId: activeTimer.projectId,
+      ticketId: activeTimer.ticketId,
+      colleagueId: activeTimer.colleagueId,
+      date: todayPlus(0),
+      hours: timerDurationHours(activeTimer.startedAt),
+      billable: activeTimer.billable,
+      note: activeTimer.note,
+    };
+    setData((current) => ({ ...current, timeEntries: [entry, ...current.timeEntries] }));
+    setSelectedProjectId(entry.projectId);
+    setActiveTimer(null);
+  }
+
+  function cancelTimer() {
+    if (!activeTimer) return;
+    const confirmed = window.confirm(`Discard the running timer for ${projectName(data, activeTimer.projectId)}?`);
+    if (confirmed) setActiveTimer(null);
   }
 
   function saveTimeEntry(form: FormData) {
@@ -189,10 +264,12 @@ export function App() {
           <div className="actions"><label className="search"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, tickets, people..." /></label><button onClick={() => setModal(defaultModalFor(view))} aria-label={`${ctaFor(view)}`}><Plus size={18} aria-hidden="true"/>{ctaFor(view)}</button></div>
         </header>
 
+        {activeTimer && <ActiveTimerBar data={data} activeTimer={activeTimer} now={now} onStop={stopTimer} onCancel={cancelTimer} />}
+
         {view === 'Dashboard' && <Dashboard data={data} metrics={metrics} onSelectProject={(id) => { setSelectedProjectId(id); setView('Projects'); }} onNewProject={() => setModal('project')} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onOpenReports={() => setView('Reports')} />}
-        {view === 'Projects' && (selectedProject ? <ProjectsView data={data} projects={filteredProjects} selectedProject={selectedProject} onSelectProject={setSelectedProjectId} onNewProject={() => setModal('project')} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onEditTime={editTimeEntry} onDeleteTime={deleteTimeEntry} onMoveTicket={moveTicket} /> : <section className="panel"><PanelTitle eyebrow="Projects" title="Portfolio" /><EmptyState title="No projects yet" body="Create the first client project to open the cockpit, tickets, and time workflow." action="Create project" onAction={() => setModal('project')}/></section>)}
-        {view === 'Tickets' && <TicketsView data={data} tickets={filteredTickets} onMoveTicket={moveTicket} onNew={() => setModal('ticket')} />}
-        {view === 'Time' && <TimeView data={data} onNew={() => setModal('time')} onEdit={editTimeEntry} onDelete={deleteTimeEntry} />}
+        {view === 'Projects' && (selectedProject ? <ProjectsView data={data} projects={filteredProjects} selectedProject={selectedProject} onSelectProject={setSelectedProjectId} onNewProject={() => setModal('project')} onNewTicket={() => setModal('ticket')} onLogTime={() => setModal('time')} onEditTime={editTimeEntry} onDeleteTime={deleteTimeEntry} onMoveTicket={moveTicket} onStartTimer={startTimer} /> : <section className="panel"><PanelTitle eyebrow="Projects" title="Portfolio" /><EmptyState title="No projects yet" body="Create the first client project to open the cockpit, tickets, and time workflow." action="Create project" onAction={() => setModal('project')}/></section>)}
+        {view === 'Tickets' && <TicketsView data={data} tickets={filteredTickets} onMoveTicket={moveTicket} onStartTimer={startTimer} onNew={() => setModal('ticket')} />}
+        {view === 'Time' && <TimeView data={data} activeTimer={activeTimer} now={now} onStartTimer={startTimer} onStopTimer={stopTimer} onCancelTimer={cancelTimer} onNew={() => setModal('time')} onEdit={editTimeEntry} onDelete={deleteTimeEntry} />}
         {view === 'Reports' && <ReportsView data={data} metrics={metrics} onExport={exportCsv} onLogTime={() => setModal('time')} />}
         {view === 'Customers' && <CustomersView data={data} selectedCustomer={selectedCustomer} onSelectCustomer={setSelectedCustomerId} onUpdateHealth={updateCustomerHealth} onNew={() => setModal('customer')} onNewProject={() => setModal('project')} onOpenProject={(id) => { setSelectedProjectId(id); setView('Projects'); }} onLogTime={() => setModal('time')} />}
         {view === 'Team' && <TeamView data={data} onNew={() => setModal('colleague')} />}
@@ -214,13 +291,13 @@ function Dashboard({ data, metrics, onSelectProject, onNewProject, onNewTicket, 
   return <><section className="hero"><div><p className="eyebrow">MOCO + Trello + Clockify core</p><h2>Run consulting delivery from project cockpit to reports.</h2><p>Track project health, assign ticket work, log billable time, and understand where the agency spends effort.</p></div><div className="heroCard"><TimerReset/><strong>Today’s useful loop</strong><span>Create project → add ticket → assign colleague → log time → review reports.</span><div className="quickActions"><button onClick={onNewProject}><Plus size={16}/>Project</button><button className="ghost" onClick={onNewTicket}>Ticket</button><button className="ghost" onClick={onLogTime}>Time</button><button className="ghost" onClick={onOpenReports}>Reports</button></div></div></section><section className="stats">{stats.map(({ label, value, delta, icon: Icon }) => <article className="stat" key={label}><Icon/><span>{label}</span><strong>{value}</strong><small>{delta}</small></article>)}</section><section className="grid"><article className="panel wide"><PanelTitle eyebrow="Project cockpit" title="Active projects" />{data.projects.length ? data.projects.map((project) => <button className="projectButton" key={project.id} onClick={() => onSelectProject(project.id)}><ProjectSummary data={data} project={project}/></button>) : <EmptyState title="No projects yet" body="Create the first client project, then add tickets and time from its cockpit." action="Create project" onAction={onNewProject}/>}</article><article className="panel"><PanelTitle eyebrow="Ticket system" title="Priority work" action="New ticket" onAction={onNewTicket}/>{urgentTickets.length ? urgentTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id}/>) : <EmptyState title="No high-priority tickets" body="Add delivery work when a project needs attention." action="Add ticket" onAction={onNewTicket}/>}</article><article className="panel"><PanelTitle eyebrow="Time tracking" title="Recent entries" action="Log time" onAction={onLogTime}/>{data.timeEntries.length ? data.timeEntries.slice(0, 4).map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>) : <EmptyState title="No time logged" body="Log time against a ticket to make reports and budgets useful." action="Log time" onAction={onLogTime}/>}</article></section></>;
 }
 
-function ProjectsView({ data, projects, selectedProject, onSelectProject, onNewProject, onNewTicket, onLogTime, onEditTime, onDeleteTime, onMoveTicket }: { data: AppData; projects: Project[]; selectedProject: Project; onSelectProject: (id: string) => void; onNewProject: () => void; onNewTicket: () => void; onLogTime: () => void; onEditTime: (entryId: string) => void; onDeleteTime: (entryId: string) => void; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void }) {
+function ProjectsView({ data, projects, selectedProject, onSelectProject, onNewProject, onNewTicket, onLogTime, onEditTime, onDeleteTime, onMoveTicket, onStartTimer }: { data: AppData; projects: Project[]; selectedProject: Project; onSelectProject: (id: string) => void; onNewProject: () => void; onNewTicket: () => void; onLogTime: () => void; onEditTime: (entryId: string) => void; onDeleteTime: (entryId: string) => void; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void; onStartTimer: (projectId: string, ticketId?: string) => void }) {
   const tickets = data.tickets.filter((ticket) => ticket.projectId === selectedProject.id);
   const time = data.timeEntries.filter((entry) => entry.projectId === selectedProject.id);
-  return <section className="projectWorkspace"><aside className="projectListRail"><PanelTitle eyebrow="Projects" title="Portfolio" />{projects.length ? projects.map((project) => <button className={project.id === selectedProject.id ? 'selected projectRailItem' : 'projectRailItem'} key={project.id} onClick={() => onSelectProject(project.id)}>{project.name}<small>{customerName(data, project.customerId)}</small></button>) : <EmptyState title="No matching projects" body="Try another search term or create a new engagement for this customer portfolio." action="Create project" onAction={onNewProject}/>}</aside><article className="panel projectCockpit"><div className="cockpitHead"><div><p className="eyebrow">{customerName(data, selectedProject.customerId)} · Lead {leadName(data, selectedProject.leadId)}</p><h2>{selectedProject.name}</h2><p>{selectedProject.summary}</p></div><em className={statusClass(selectedProject.status)}>{selectedProject.status}</em></div><section className="miniStats"><span><strong>{tickets.filter((ticket) => ticket.status !== 'Done').length}</strong> open tickets</span><span><strong>{projectHours(data, selectedProject.id)}h</strong> logged</span><span><strong>{projectBillableHours(data, selectedProject.id)}h</strong> billable</span><span><strong>{formatCurrency(projectRevenue(data, selectedProject.id))}</strong> earned</span></section><div className="cockpitActions"><button onClick={onNewTicket}><Plus size={16}/>Add ticket</button><button className="ghost" onClick={onLogTime}><TimerReset size={16}/>Log time</button></div><ProjectTeamStrip data={data} project={selectedProject}/><Board data={data} tickets={tickets} onMoveTicket={onMoveTicket}/><PanelTitle eyebrow="Timesheet" title="Project time" />{time.length ? time.map((entry) => <TimeRow data={data} entry={entry} key={entry.id} onEdit={onEditTime} onDelete={onDeleteTime}/>) : <EmptyState title="No time on this project yet" body="Log the first billable or internal entry to unlock budget and delivery signals." action="Log time" onAction={onLogTime}/>}</article></section>;
+  return <section className="projectWorkspace"><aside className="projectListRail"><PanelTitle eyebrow="Projects" title="Portfolio" />{projects.length ? projects.map((project) => <button className={project.id === selectedProject.id ? 'selected projectRailItem' : 'projectRailItem'} key={project.id} onClick={() => onSelectProject(project.id)}>{project.name}<small>{customerName(data, project.customerId)}</small></button>) : <EmptyState title="No matching projects" body="Try another search term or create a new engagement for this customer portfolio." action="Create project" onAction={onNewProject}/>}</aside><article className="panel projectCockpit"><div className="cockpitHead"><div><p className="eyebrow">{customerName(data, selectedProject.customerId)} · Lead {leadName(data, selectedProject.leadId)}</p><h2>{selectedProject.name}</h2><p>{selectedProject.summary}</p></div><em className={statusClass(selectedProject.status)}>{selectedProject.status}</em></div><section className="miniStats"><span><strong>{tickets.filter((ticket) => ticket.status !== 'Done').length}</strong> open tickets</span><span><strong>{projectHours(data, selectedProject.id)}h</strong> logged</span><span><strong>{projectBillableHours(data, selectedProject.id)}h</strong> billable</span><span><strong>{formatCurrency(projectRevenue(data, selectedProject.id))}</strong> earned</span></section><div className="cockpitActions"><button onClick={onNewTicket}><Plus size={16}/>Add ticket</button><button className="ghost" onClick={onLogTime}><TimerReset size={16}/>Log time</button><button className="ghost" onClick={() => onStartTimer(selectedProject.id)}><Clock3 size={16}/>Start timer</button></div><ProjectTeamStrip data={data} project={selectedProject}/><Board data={data} tickets={tickets} onMoveTicket={onMoveTicket} onStartTimer={onStartTimer}/><PanelTitle eyebrow="Timesheet" title="Project time" />{time.length ? time.map((entry) => <TimeRow data={data} entry={entry} key={entry.id} onEdit={onEditTime} onDelete={onDeleteTime}/>) : <EmptyState title="No time on this project yet" body="Log the first billable or internal entry to unlock budget and delivery signals." action="Log time" onAction={onLogTime}/>}</article></section>;
 }
 
-function Board({ data, tickets, onMoveTicket }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void }) {
+function Board({ data, tickets, onMoveTicket, onStartTimer }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void; onStartTimer: (projectId: string, ticketId?: string) => void }) {
   const [draggedTicket, setDraggedTicket] = useState<DragTicket | null>(null);
   const [dropTarget, setDropTarget] = useState<{ status: TicketStatus; beforeTicketId?: string } | null>(null);
 
@@ -263,15 +340,15 @@ function Board({ data, tickets, onMoveTicket }: { data: AppData; tickets: Ticket
   return <div className="board" aria-label="Drag tickets between columns or use each card status selector">{ticketStatuses.map((status) => {
     const columnTickets = tickets.filter((ticket) => ticket.status === status);
     const isColumnTarget = dropTarget?.status === status && !dropTarget.beforeTicketId;
-    return <section className={`boardColumn ${draggedTicket ? 'dropReady' : ''} ${isColumnTarget ? 'dropTarget' : ''}`} key={status} onDragOver={(event) => allowDrop(event, status)} onDrop={(event) => drop(event, status)} onDragLeave={() => setDropTarget(null)}><h3>{status}</h3>{columnTickets.length ? columnTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} draggable onDragStart={(event) => startDrag(event, ticket)} onDragEnd={() => { setDraggedTicket(null); setDropTarget(null); }} onDragOver={(event) => allowDrop(event, status, ticket.id)} onDrop={(event) => drop(event, status, ticket.id)} isDragging={draggedTicket?.id === ticket.id} isDropTarget={dropTarget?.beforeTicketId === ticket.id} onMove={(next) => onMoveTicket(ticket.id, next)}/>) : <p className="columnEmpty">No {status.toLowerCase()} tickets — drop one here</p>}</section>;
+    return <section className={`boardColumn ${draggedTicket ? 'dropReady' : ''} ${isColumnTarget ? 'dropTarget' : ''}`} key={status} onDragOver={(event) => allowDrop(event, status)} onDrop={(event) => drop(event, status)} onDragLeave={() => setDropTarget(null)}><h3>{status}</h3>{columnTickets.length ? columnTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} draggable onDragStart={(event) => startDrag(event, ticket)} onDragEnd={() => { setDraggedTicket(null); setDropTarget(null); }} onDragOver={(event) => allowDrop(event, status, ticket.id)} onDrop={(event) => drop(event, status, ticket.id)} isDragging={draggedTicket?.id === ticket.id} isDropTarget={dropTarget?.beforeTicketId === ticket.id} onMove={(next) => onMoveTicket(ticket.id, next)} onStartTimer={() => onStartTimer(ticket.projectId, ticket.id)}/>) : <p className="columnEmpty">No {status.toLowerCase()} tickets — drop one here</p>}</section>;
   })}</div>;
 }
 
-function TicketsView({ data, tickets, onMoveTicket, onNew }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Tickets" title="Global ticket system" action="New ticket" onAction={onNew}/>{tickets.length ? <div className="cardGrid">{tickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(status) => onMoveTicket(ticket.id, status)}/>)}</div> : <EmptyState title="No tickets found" body="Create a delivery ticket or adjust search to bring work back into view." action="New ticket" onAction={onNew}/>}</section>;
+function TicketsView({ data, tickets, onMoveTicket, onStartTimer, onNew }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void; onStartTimer: (projectId: string, ticketId?: string) => void; onNew: () => void }) {
+  return <section className="panel"><PanelTitle eyebrow="Tickets" title="Global ticket system" action="New ticket" onAction={onNew}/>{tickets.length ? <div className="cardGrid">{tickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(status) => onMoveTicket(ticket.id, status)} onStartTimer={() => onStartTimer(ticket.projectId, ticket.id)}/>)}</div> : <EmptyState title="No tickets found" body="Create a delivery ticket or adjust search to bring work back into view." action="New ticket" onAction={onNew}/>}</section>;
 }
 
-function TimeView({ data, onNew, onEdit, onDelete }: { data: AppData; onNew: () => void; onEdit: (entryId: string) => void; onDelete: (entryId: string) => void }) {
+function TimeView({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer, onNew, onEdit, onDelete }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string) => void; onStopTimer: () => void; onCancelTimer: () => void; onNew: () => void; onEdit: (entryId: string) => void; onDelete: (entryId: string) => void }) {
   const latestDate = data.timeEntries.reduce((latest, entry) => entry.date > latest ? entry.date : latest, data.timeEntries[0]?.date ?? todayPlus(0));
   const weekStart = weekStartDate(latestDate);
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
@@ -279,7 +356,23 @@ function TimeView({ data, onNew, onEdit, onDelete }: { data: AppData; onNew: () 
   const weeklyTotal = weeklyRows.reduce((sum, row) => sum + row.total, 0);
   const weeklyBillable = weeklyRows.reduce((sum, row) => sum + row.billable, 0);
 
-  return <section className="panel timeCockpit"><PanelTitle eyebrow="Time management" title="Weekly timesheet" action="Log time" onAction={onNew}/>{data.timeEntries.length ? <><div className="timesheetSummary"><div><p className="eyebrow">Week of {weekStart}</p><strong>{weeklyTotal}h logged · {weeklyBillable}h billable</strong><span>Daily totals make Clockify-style review possible before reports and billing.</span></div><button className="ghost" onClick={onNew}>Add manual entry</button></div>{weeklyRows.length ? <div className="timesheetTable" role="table" aria-label="Weekly timesheet totals by colleague"><div className="timesheetHeader" role="row"><span>Person</span>{weekDays.map((day) => <span key={day}>{new Date(`${day}T00:00:00.000Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>)}<span>Total</span></div>{weeklyRows.map((row) => <div className="timesheetLine" role="row" key={row.colleague.id}><strong>{row.colleague.name}<small>{row.billable}h billable · {row.internal}h internal</small></strong>{row.dailyHours.map((hours, index) => <span key={`${row.colleague.id}-${weekDays[index]}`} className={hours ? 'hasHours' : ''}>{hours ? `${hours}h` : '—'}</span>)}<b>{row.total}h</b></div>)}</div> : <EmptyState title="No time in this week" body="Log time in the selected week to review colleague totals before exporting reports." action="Log time" onAction={onNew}/>}<PanelTitle eyebrow="Recent entries" title="Activity log" />{data.timeEntries.map((entry) => <TimeRow data={data} entry={entry} key={entry.id} onEdit={onEdit} onDelete={onDelete}/>)}</> : <EmptyState title="No time entries yet" body="Start with a manual entry so reports can show billable hours, utilization, and earned revenue." action="Log time" onAction={onNew}/>}</section>;
+  return <section className="panel timeCockpit"><PanelTitle eyebrow="Time management" title="Weekly timesheet" action="Log time" onAction={onNew}/><TimerControl data={data} activeTimer={activeTimer} now={now} onStartTimer={onStartTimer} onStopTimer={onStopTimer} onCancelTimer={onCancelTimer}/>{data.timeEntries.length ? <><div className="timesheetSummary"><div><p className="eyebrow">Week of {weekStart}</p><strong>{weeklyTotal}h logged · {weeklyBillable}h billable</strong><span>Daily totals make Clockify-style review possible before reports and billing.</span></div><button className="ghost" onClick={onNew}>Add manual entry</button></div>{weeklyRows.length ? <div className="timesheetTable" role="table" aria-label="Weekly timesheet totals by colleague"><div className="timesheetHeader" role="row"><span>Person</span>{weekDays.map((day) => <span key={day}>{new Date(`${day}T00:00:00.000Z`).toLocaleDateString(undefined, { weekday: 'short' })}</span>)}<span>Total</span></div>{weeklyRows.map((row) => <div className="timesheetLine" role="row" key={row.colleague.id}><strong>{row.colleague.name}<small>{row.billable}h billable · {row.internal}h internal</small></strong>{row.dailyHours.map((hours, index) => <span key={`${row.colleague.id}-${weekDays[index]}`} className={hours ? 'hasHours' : ''}>{hours ? `${hours}h` : '—'}</span>)}<b>{row.total}h</b></div>)}</div> : <EmptyState title="No time in this week" body="Log time in the selected week to review colleague totals before exporting reports." action="Log time" onAction={onNew}/>}<PanelTitle eyebrow="Recent entries" title="Activity log" />{data.timeEntries.map((entry) => <TimeRow data={data} entry={entry} key={entry.id} onEdit={onEdit} onDelete={onDelete}/>)}</> : <EmptyState title="No time entries yet" body="Start with a manual entry so reports can show billable hours, utilization, and earned revenue." action="Log time" onAction={onNew}/>}</section>;
+}
+
+function ActiveTimerBar({ data, activeTimer, now, onStop, onCancel }: { data: AppData; activeTimer: ActiveTimer; now: number; onStop: () => void; onCancel: () => void }) {
+  return <section className="activeTimerBar" aria-live="polite"><div><p className="eyebrow">Running timer</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · {projectName(data, activeTimer.projectId)}</strong><span>{ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)}</span></div><div><button onClick={onStop}><CheckCircle2 size={16}/>Stop and save</button><button className="ghost" onClick={onCancel}>Discard</button></div></section>;
+}
+
+function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string) => void; onStopTimer: () => void; onCancelTimer: () => void }) {
+  const [projectId, setProjectId] = useState(data.projects[0]?.id ?? '');
+  const [ticketId, setTicketId] = useState('');
+  const projectTickets = data.tickets.filter((ticket) => ticket.projectId === projectId);
+
+  const selectedTicketId = projectTickets.some((ticket) => ticket.id === ticketId) ? ticketId : '';
+
+  if (activeTimer) return <section className="timerControl running"><TimerReset size={20}/><div><p className="eyebrow">Timer running</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · rounds to {timerDurationHours(activeTimer.startedAt, now)}h</strong><span>{projectName(data, activeTimer.projectId)} · {ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)}</span></div><button onClick={onStopTimer}>Stop and save</button><button className="ghost" onClick={onCancelTimer}>Discard</button></section>;
+
+  return <section className="timerControl"><TimerReset size={20}/><div><p className="eyebrow">Start/stop timer</p><strong>Track live work before it becomes a timesheet entry.</strong><span>Choose a project or ticket; stopping the timer creates a billable time entry rounded to the nearest quarter-hour.</span></div><label>Project<select value={projectId} onChange={(event) => { setProjectId(event.target.value); setTicketId(''); }}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select value={selectedTicketId} onChange={(event) => setTicketId(event.target.value)}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select></label><button disabled={!projectId} onClick={() => onStartTimer(projectId, selectedTicketId)}><Clock3 size={16}/>Start timer</button></section>;
 }
 
 function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: () => void; onLogTime: () => void }) {
@@ -374,7 +467,7 @@ function ProjectTeamStrip({ data, project }: { data: AppData; project: Project }
 }
 
 function ProjectSummary({ data, project }: { data: AppData; project: Project }) { return <div className="projectSummary"><div><strong>{project.name}</strong><span>{customerName(data, project.customerId)} · Lead {leadName(data, project.leadId)}</span></div><em className={statusClass(project.status)}>{project.status}</em><small>{projectHours(data, project.id)}h · {projectBudgetUsedPercent(data, project.id)}% of {formatCurrency(project.budget)}</small></div>; }
-function TicketCard({ data, ticket, onMove, draggable = false, isDragging = false, isDropTarget = false, onDragStart, onDragEnd, onDragOver, onDrop }: { data: AppData; ticket: Ticket; onMove?: (status: TicketStatus) => void; draggable?: boolean; isDragging?: boolean; isDropTarget?: boolean; onDragStart?: (event: DragEvent<HTMLElement>) => void; onDragEnd?: () => void; onDragOver?: (event: DragEvent<HTMLElement>) => void; onDrop?: (event: DragEvent<HTMLElement>) => void }) { return <article className={`ticketCard ${draggable ? 'draggableTicket' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'dropBefore' : ''}`} draggable={draggable} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}><div><strong>{ticket.title}</strong><p>{ticket.description}</p></div><div className="ticketMeta"><span>{projectName(data, ticket.projectId)}</span><span>{colleagueName(data, ticket.assigneeId)}</span><em className={statusClass(ticket.priority)}>{ticket.priority}</em></div><small>{ticketLoggedHours(data, ticket.id)}h logged / {ticket.estimateHours}h est · due {new Date(ticket.dueDate).toLocaleDateString()}</small>{onMove && <label className="statusFallback"><span>Move to</span><select value={ticket.status} onChange={(event) => onMove(event.target.value as TicketStatus)}>{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>}</article>; }
+function TicketCard({ data, ticket, onMove, onStartTimer, draggable = false, isDragging = false, isDropTarget = false, onDragStart, onDragEnd, onDragOver, onDrop }: { data: AppData; ticket: Ticket; onMove?: (status: TicketStatus) => void; onStartTimer?: () => void; draggable?: boolean; isDragging?: boolean; isDropTarget?: boolean; onDragStart?: (event: DragEvent<HTMLElement>) => void; onDragEnd?: () => void; onDragOver?: (event: DragEvent<HTMLElement>) => void; onDrop?: (event: DragEvent<HTMLElement>) => void }) { return <article className={`ticketCard ${draggable ? 'draggableTicket' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'dropBefore' : ''}`} draggable={draggable} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}><div><strong>{ticket.title}</strong><p>{ticket.description}</p></div><div className="ticketMeta"><span>{projectName(data, ticket.projectId)}</span><span>{colleagueName(data, ticket.assigneeId)}</span><em className={statusClass(ticket.priority)}>{ticket.priority}</em></div><small>{ticketLoggedHours(data, ticket.id)}h logged / {ticket.estimateHours}h est · due {new Date(ticket.dueDate).toLocaleDateString()}</small>{onMove && <label className="statusFallback"><span>Move to</span><select value={ticket.status} onChange={(event) => onMove(event.target.value as TicketStatus)}>{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>}{onStartTimer && <button type="button" className="ticketTimerButton" onClick={onStartTimer}><Clock3 size={15}/>Start timer</button>}</article>; }
 function TimeRow({ data, entry, onEdit, onDelete }: { data: AppData; entry: TimeEntry; onEdit?: (entryId: string) => void; onDelete?: (entryId: string) => void }) { return <div className="timeRow"><TimerReset size={18}/><div><strong>{entry.hours}h · {projectName(data, entry.projectId)}</strong><small>{ticketTitle(data, entry.ticketId)} · {colleagueName(data, entry.colleagueId)} · {entry.date}</small>{entry.note ? <small>{entry.note}</small> : null}</div><em className={entry.billable ? 'green' : 'neutral'}>{entry.billable ? 'Billable' : 'Internal'}</em>{(onEdit || onDelete) && <div className="rowActions" aria-label={`Time entry actions for ${projectName(data, entry.projectId)}`}><button type="button" onClick={() => onEdit?.(entry.id)}>Edit</button><button type="button" className="danger" onClick={() => onDelete?.(entry.id)}>Delete</button></div>}</div>; }
 function PersonRow({ person }: { person: Colleague }) { return <div className="person"><span>{initials(person.name)}</span><div><strong>{person.name}</strong><small>{person.role}</small></div><b>{person.capacity}%</b></div>; }
 function CustomerRow({ customer, open }: { customer: Customer; open: number }) { return <div className="customer"><BriefcaseBusiness/><div><strong>{customer.name}</strong><small>{open} projects · {customer.segment}</small></div><em>{customer.health}</em></div>; }
