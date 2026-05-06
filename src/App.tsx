@@ -6,6 +6,7 @@ type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Custome
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
 type DragTicket = { id: string; status: TicketStatus };
 type ActiveTimer = { projectId: string; ticketId: string; colleagueId: string; billable: boolean; note: string; startedAt: string };
+type TimerStartOptions = { colleagueId?: string; billable?: boolean; note?: string };
 
 const storageKey = 'agencyos.ops.v1';
 const activeTimerKey = 'agencyos.activeTimer.v1';
@@ -125,18 +126,18 @@ export function App() {
     setModal(null);
   }
 
-  function startTimer(projectId: string, ticketId = '') {
+  function startTimer(projectId: string, ticketId = '', options: TimerStartOptions = {}) {
     if (activeTimer) return;
     const project = byId(data.projects, projectId);
     const ticket = byId(data.tickets, ticketId);
-    const colleagueId = ticket?.assigneeId ?? project?.leadId ?? data.colleagues[0]?.id ?? '';
+    const colleagueId = options.colleagueId || ticket?.assigneeId || project?.leadId || data.colleagues[0]?.id || '';
     if (!project || !colleagueId) return;
     setActiveTimer({
       projectId: project.id,
       ticketId,
       colleagueId,
-      billable: true,
-      note: ticket ? `Timer: ${ticket.title}` : `Timer: ${project.name}`,
+      billable: options.billable ?? true,
+      note: options.note?.trim() || (ticket ? `Timer: ${ticket.title}` : `Timer: ${project.name}`),
       startedAt: new Date().toISOString(),
     });
     setSelectedProjectId(project.id);
@@ -338,7 +339,7 @@ function TicketsView({ data, tickets, onMoveTicket, onStartTimer, activeTimer, o
   return <section className="panel"><PanelTitle eyebrow="Tickets" title="Global ticket system" action="New ticket" onAction={onNew}/>{tickets.length ? <div className="cardGrid">{tickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(status) => onMoveTicket(ticket.id, status)} onStartTimer={() => onStartTimer(ticket.projectId, ticket.id)} timerRunning={!!activeTimer}/>)}</div> : <EmptyState title="No tickets found" body="Create a delivery ticket or adjust search to bring work back into view." action="New ticket" onAction={onNew}/>}</section>;
 }
 
-function TimeView({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer, onNew, onEdit, onDelete }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string) => void; onStopTimer: () => void; onCancelTimer: () => void; onNew: () => void; onEdit: (entryId: string) => void; onDelete: (entryId: string) => void }) {
+function TimeView({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer, onNew, onEdit, onDelete }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string, options?: TimerStartOptions) => void; onStopTimer: () => void; onCancelTimer: () => void; onNew: () => void; onEdit: (entryId: string) => void; onDelete: (entryId: string) => void }) {
   const latestDate = data.timeEntries.reduce((latest, entry) => entry.date > latest ? entry.date : latest, data.timeEntries[0]?.date ?? todayPlus(0));
   const weekStart = weekStartDate(latestDate);
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
@@ -350,21 +351,21 @@ function TimeView({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelT
 }
 
 function ActiveTimerBar({ data, activeTimer, now, onStop, onCancel }: { data: AppData; activeTimer: ActiveTimer; now: number; onStop: () => void; onCancel: () => void }) {
-  return <section className="activeTimerBar" aria-live="polite"><div><p className="eyebrow">Running timer</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · {projectName(data, activeTimer.projectId)}</strong><span>{ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)}</span></div><div><button onClick={onStop}><CheckCircle2 size={16}/>Stop and save</button><button className="ghost" onClick={onCancel}>Discard</button></div></section>;
+  return <section className="activeTimerBar" aria-live="polite"><div><p className="eyebrow">Running timer</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · {projectName(data, activeTimer.projectId)}</strong><span>{ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span></div><div><button onClick={onStop}><CheckCircle2 size={16}/>Stop and save</button><button className="ghost" onClick={onCancel}>Discard</button></div></section>;
 }
 
-function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string) => void; onStopTimer: () => void; onCancelTimer: () => void }) {
+function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string, options?: TimerStartOptions) => void; onStopTimer: () => void; onCancelTimer: () => void }) {
   const [projectId, setProjectId] = useState(data.projects[0]?.id ?? '');
   const [ticketId, setTicketId] = useState('');
+  const [colleagueId, setColleagueId] = useState(data.projects[0]?.leadId ?? data.colleagues[0]?.id ?? '');
+  const [billable, setBillable] = useState(true);
+  const [note, setNote] = useState('');
   const projectTickets = data.tickets.filter((ticket) => ticket.projectId === projectId);
-
   const selectedTicketId = projectTickets.some((ticket) => ticket.id === ticketId) ? ticketId : '';
-
-  if (activeTimer) return <section className="timerControl running"><TimerReset size={20}/><div><p className="eyebrow">Timer running</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · rounds to {timerDurationHours(activeTimer.startedAt, now)}h</strong><span>{projectName(data, activeTimer.projectId)} · {ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)}</span></div><button onClick={onStopTimer}>Stop and save</button><button className="ghost" onClick={onCancelTimer}>Discard</button></section>;
-
-  return <section className="timerControl"><TimerReset size={20}/><div><p className="eyebrow">Start/stop timer</p><strong>Track live work before it becomes a timesheet entry.</strong><span>Choose a project or ticket; stopping the timer creates a billable time entry rounded to the nearest quarter-hour.</span></div><label>Project<select value={projectId} onChange={(event) => { setProjectId(event.target.value); setTicketId(''); }}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select value={selectedTicketId} onChange={(event) => setTicketId(event.target.value)}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select></label><button disabled={!projectId} onClick={() => onStartTimer(projectId, selectedTicketId)}><Clock3 size={16}/>Start timer</button></section>;
+  const defaultNote = selectedTicketId ? `Timer: ${ticketTitle(data, selectedTicketId)}` : `Timer: ${projectName(data, projectId)}`;
+  if (activeTimer) return <section className="timerControl running"><TimerReset size={20}/><div><p className="eyebrow">Timer running</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · rounds to {timerDurationHours(activeTimer.startedAt, now)}h</strong><span>{projectName(data, activeTimer.projectId)} · {ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span></div><button onClick={onStopTimer}>Stop and save</button><button className="ghost" onClick={onCancelTimer}>Discard</button></section>;
+  return <section className="timerControl"><TimerReset size={20}/><div><p className="eyebrow">Start/stop timer</p><strong>Track live work before it becomes a timesheet entry.</strong><span>Choose project, ticket, person, billable status, and note before the timer starts.</span></div><label>Project<select value={projectId} onChange={(event) => { const nextProjectId = event.target.value; setProjectId(nextProjectId); setTicketId(''); setColleagueId(byId(data.projects, nextProjectId)?.leadId ?? data.colleagues[0]?.id ?? ''); }}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select value={selectedTicketId} onChange={(event) => { const nextTicketId = event.target.value; setTicketId(nextTicketId); const ticket = byId(data.tickets, nextTicketId); if (ticket?.assigneeId) setColleagueId(ticket.assigneeId); }}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select></label><label>Person<select value={colleagueId} onChange={(event) => setColleagueId(event.target.value)}>{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><label>Note<input value={note} placeholder={defaultNote} onChange={(event) => setNote(event.target.value)} /></label><label className="timerBillable"><input type="checkbox" checked={billable} onChange={(event) => setBillable(event.target.checked)} />Billable</label><button disabled={!projectId || !colleagueId} onClick={() => onStartTimer(projectId, selectedTicketId, { colleagueId, billable, note: note || defaultNote })}><Clock3 size={16}/>Start timer</button></section>;
 }
-
 function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: (entries?: TimeEntry[]) => void; onLogTime: () => void }) {
   const [period, setPeriod] = useState<ReportPeriod>('all');
   const [customerId, setCustomerId] = useState('');
