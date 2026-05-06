@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, LayoutDashboard, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
-import { byId, calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
+import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, HeartPulse, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
+import { byId, calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
 
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
@@ -36,13 +36,16 @@ export function App() {
   const [data, setData] = useState<AppData>(() => loadData());
   const [query, setQuery] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState(() => initialData.projects[0]?.id ?? '');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(() => initialData.customers[0]?.id ?? '');
   const [modal, setModal] = useState<Modal>(null);
 
   useEffect(() => localStorage.setItem(storageKey, JSON.stringify(data)), [data]);
 
   const metrics = useMemo(() => calculateMetrics(data), [data]);
   const safeSelectedProjectId = data.projects.some((project) => project.id === selectedProjectId) ? selectedProjectId : data.projects[0]?.id ?? '';
+  const safeSelectedCustomerId = data.customers.some((customer) => customer.id === selectedCustomerId) ? selectedCustomerId : data.customers[0]?.id ?? '';
   const selectedProject = byId(data.projects, safeSelectedProjectId) ?? data.projects[0];
+  const selectedCustomer = byId(data.customers, safeSelectedCustomerId) ?? data.customers[0];
   const lowerQuery = query.toLowerCase();
   const filteredProjects = data.projects.filter((project) => [project.name, customerName(data, project.customerId), leadName(data, project.leadId), project.status].join(' ').toLowerCase().includes(lowerQuery));
   const filteredTickets = data.tickets.filter((ticket) => [ticket.title, projectName(data, ticket.projectId), colleagueName(data, ticket.assigneeId), ticket.status, ticket.priority].join(' ').toLowerCase().includes(lowerQuery));
@@ -103,7 +106,12 @@ export function App() {
   function addCustomer(form: FormData) {
     const customer: Customer = { id: makeId('cust'), name: String(form.get('name') || 'New customer'), segment: String(form.get('segment') || 'Consulting'), owner: String(form.get('owner') || 'Unassigned'), health: form.get('health') as CustomerHealth, revenueTarget: Number(form.get('revenueTarget') || 0) };
     setData((current) => ({ ...current, customers: [customer, ...current.customers] }));
+    setSelectedCustomerId(customer.id);
     setModal(null);
+  }
+
+  function updateCustomerHealth(customerId: string, health: CustomerHealth) {
+    setData((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === customerId ? { ...customer, health } : customer) }));
   }
 
   function addColleague(form: FormData) {
@@ -150,7 +158,7 @@ export function App() {
         {view === 'Tickets' && <TicketsView data={data} tickets={filteredTickets} onMoveTicket={moveTicket} onNew={() => setModal('ticket')} />}
         {view === 'Time' && <TimeView data={data} onNew={() => setModal('time')} />}
         {view === 'Reports' && <ReportsView data={data} metrics={metrics} onExport={exportCsv} onLogTime={() => setModal('time')} />}
-        {view === 'Customers' && <CustomersView data={data} onNew={() => setModal('customer')} />}
+        {view === 'Customers' && <CustomersView data={data} selectedCustomer={selectedCustomer} onSelectCustomer={setSelectedCustomerId} onUpdateHealth={updateCustomerHealth} onNew={() => setModal('customer')} onNewProject={() => setModal('project')} onOpenProject={(id) => { setSelectedProjectId(id); setView('Projects'); }} onLogTime={() => setModal('time')} />}
         {view === 'Team' && <TeamView data={data} onNew={() => setModal('colleague')} />}
       </section>
 
@@ -196,13 +204,27 @@ function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; me
   return <section className="grid"><article className="panel wide"><PanelTitle eyebrow="Reports" title="Project profitability and hours" action="Export CSV" onAction={onExport}/>{hasReportRows ? data.projects.map((project) => <div className="reportRow" key={project.id}><div><strong>{project.name}</strong><small>{customerName(data, project.customerId)}</small></div><span>{projectHours(data, project.id)}h total</span><span>{projectBillableHours(data, project.id)}h billable</span><span>{projectBudgetUsedPercent(data, project.id)}% budget</span><b>{formatCurrency(projectRevenue(data, project.id))}</b></div>) : <EmptyState title="Reports need project time" body="Log time to turn this into an agency revenue and utilization cockpit." action="Log time" onAction={onLogTime}/>}</article><article className="panel"><Download/><h3>Report summary</h3><p>{metrics.totalHours}h tracked, {metrics.billableHours}h billable, {formatCurrency(metrics.revenue)} earned from logged work.</p></article></section>;
 }
 
-function CustomersView({ data, onNew }: { data: AppData; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Customers" title="Accounts and delivery" action="New customer" onAction={onNew}/>{data.customers.length ? <div className="cardGrid">{data.customers.map((customer) => {
-    const projects = customerProjects(data, customer.id);
-    const revenue = customerRevenue(data, customer.id);
-    const targetProgress = customer.revenueTarget ? Math.min(100, Math.round((revenue / customer.revenueTarget) * 100)) : 0;
-    return <article className="accountCard" key={customer.id}><CustomerRow customer={customer} open={projects.length}/><div className="deliveryFacts"><span>{projects.filter((project) => project.status !== 'Done').length} active</span><span>{customerHours(data, customer.id)}h logged</span><span>{formatCurrency(revenue)} earned</span></div><div className="meter"><i style={{ width: `${targetProgress}%` }} /></div><small>Owner: {customer.owner} · Target: {formatCurrency(customer.revenueTarget)} · {projects.filter((project) => project.status === 'At risk').length} at risk</small></article>;
-  })}</div> : <EmptyState title="No customers yet" body="Add the first client account so projects, tickets, time, and revenue have CRM-lite context." action="New customer" onAction={onNew}/>}</section>;
+function CustomersView({ data, selectedCustomer, onSelectCustomer, onUpdateHealth, onNew, onNewProject, onOpenProject, onLogTime }: { data: AppData; selectedCustomer?: Customer; onSelectCustomer: (id: string) => void; onUpdateHealth: (id: string, health: CustomerHealth) => void; onNew: () => void; onNewProject: () => void; onOpenProject: (id: string) => void; onLogTime: () => void }) {
+  if (!data.customers.length || !selectedCustomer) return <section className="panel"><PanelTitle eyebrow="Customers" title="Accounts and delivery" action="New customer" onAction={onNew}/><EmptyState title="No customers yet" body="Add the first client account so projects, tickets, time, and revenue have CRM-lite context." action="New customer" onAction={onNew}/></section>;
+  const projects = customerProjects(data, selectedCustomer.id);
+  const tickets = customerTickets(data, selectedCustomer.id);
+  const openTickets = tickets.filter((ticket) => ticket.status !== 'Done');
+  const revenue = customerRevenue(data, selectedCustomer.id);
+  const hours = customerHours(data, selectedCustomer.id);
+  const targetProgress = selectedCustomer.revenueTarget ? Math.min(100, Math.round((revenue / selectedCustomer.revenueTarget) * 100)) : 0;
+  const atRiskProjects = projects.filter((project) => project.status === 'At risk');
+  const nextAction = atRiskProjects.length
+    ? `Schedule a recovery check-in for ${atRiskProjects[0].name}.`
+    : openTickets.length
+      ? `Review ${openTickets[0].title} before ${new Date(openTickets[0].dueDate).toLocaleDateString()}.`
+      : projects.length
+        ? 'Log fresh time or add the next delivery ticket.'
+        : 'Create the first project for this account.';
+
+  return <section className="customerWorkspace"><aside className="customerListRail"><PanelTitle eyebrow="Customers" title="Accounts" action="New" onAction={onNew}/>{data.customers.map((customer) => {
+    const customerProjectCount = customerProjects(data, customer.id).length;
+    return <button className={customer.id === selectedCustomer.id ? 'selected customerRailItem' : 'customerRailItem'} key={customer.id} onClick={() => onSelectCustomer(customer.id)}><CustomerRow customer={customer} open={customerProjectCount}/><small>{customerHours(data, customer.id)}h · {formatCurrency(customerRevenue(data, customer.id))}</small></button>;
+  })}</aside><article className="panel customerCockpit"><div className="customerHero"><div><p className="eyebrow">CRM-lite cockpit · {selectedCustomer.segment}</p><h2>{selectedCustomer.name}</h2><p>Owner {selectedCustomer.owner}. Connects account health, projects, open delivery work, time, and revenue target progress in one customer record.</p></div><div className="healthEditor" aria-label="Customer health"><HeartPulse size={18}/><strong>{selectedCustomer.health}</strong><select value={selectedCustomer.health} onChange={(event) => onUpdateHealth(selectedCustomer.id, event.target.value as CustomerHealth)}>{healthOptions.map((health) => <option key={health}>{health}</option>)}</select></div></div><section className="miniStats"><span><strong>{projects.length}</strong> projects</span><span><strong>{openTickets.length}</strong> open tickets</span><span><strong>{hours}h</strong> logged</span><span><strong>{formatCurrency(revenue)}</strong> earned</span></section><div className="targetPanel"><div><p className="eyebrow">Revenue target</p><strong>{targetProgress}% of {formatCurrency(selectedCustomer.revenueTarget)}</strong></div><div className="meter"><i style={{ width: `${targetProgress}%` }} /></div></div><section className="nextAction"><Lightbulb size={19}/><div><strong>Suggested next action</strong><p>{nextAction}</p></div></section><div className="customerCockpitGrid"><article><PanelTitle eyebrow="Connected projects" title="Delivery portfolio" />{projects.length ? projects.map((project) => <button className="projectButton" key={project.id} onClick={() => onOpenProject(project.id)}><ProjectSummary data={data} project={project}/></button>) : <EmptyState title="No projects yet" body="Create a project to connect this customer to delivery, time, and reports." action="Create project" onAction={onNewProject}/>}</article><article><PanelTitle eyebrow="Open work" title="Tickets needing attention" />{openTickets.length ? openTickets.slice(0, 4).map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id}/>) : <EmptyState title="No open tickets" body="This account has no active delivery work. Log time or add the next ticket from a project cockpit." action="Log time" onAction={onLogTime}/>}</article></div></article></section>;
 }
 
 function TeamView({ data, onNew }: { data: AppData; onNew: () => void }) {

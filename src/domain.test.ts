@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
+import { calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -26,6 +26,7 @@ describe('AgencyOS operations metrics', () => {
   it('connects customer and colleague screens to delivery work', () => {
     expect(customerHours(initialData, 'cust-acme')).toBe(5.5);
     expect(customerRevenue(initialData, 'cust-acme')).toBe(440);
+    expect(customerTickets(initialData, 'cust-acme').map((ticket) => ticket.id)).toEqual(['tic-scope']);
     expect(colleagueLoggedHours(initialData, 'col-sara')).toBe(2);
     expect(colleagueOpenTicketEstimate(initialData, 'col-sara')).toBe(9);
   });
