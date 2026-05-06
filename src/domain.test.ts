@@ -29,6 +29,33 @@ describe('AgencyOS operations metrics', () => {
     expect(projectBudgetRemaining(initialData, 'proj-erp')).toBe(17560);
   });
 
+  it('keeps internal consulting time in workload totals without inflating revenue', () => {
+    const data = {
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        {
+          id: 'time-internal-retro',
+          projectId: 'proj-brand',
+          ticketId: 'tic-brief',
+          colleagueId: 'col-mina',
+          date: '2026-05-06',
+          hours: 2,
+          billable: false,
+          note: 'Internal delivery retro',
+        },
+      ],
+    };
+
+    expect(projectHours(data, 'proj-brand')).toBe(7.5);
+    expect(projectBillableHours(data, 'proj-brand')).toBe(5.5);
+    expect(projectRevenue(data, 'proj-brand')).toBe(660);
+    expect(customerHours(data, 'cust-northstar')).toBe(7.5);
+    expect(customerRevenue(data, 'cust-northstar')).toBe(660);
+    expect(calculateMetrics(data).totalHours).toBe(13);
+    expect(calculateMetrics(data).billableHours).toBe(9.5);
+  });
+
   it('connects customer and colleague screens to delivery work', () => {
     expect(customerHours(initialData, 'cust-acme')).toBe(5.5);
     expect(customerRevenue(initialData, 'cust-acme')).toBe(440);
