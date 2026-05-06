@@ -2,6 +2,7 @@ export type ProjectStatus = 'Planning' | 'Active' | 'At risk' | 'Done';
 export type TicketStatus = 'Backlog' | 'Todo' | 'In progress' | 'Review' | 'Done';
 export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type CustomerHealth = 'Excellent' | 'Healthy' | 'Needs care' | 'New';
+export type ReportPeriod = 'all' | '7' | '30';
 
 export type Customer = {
   id: string;
@@ -224,6 +225,35 @@ export function weeklyTimesheetByColleague(data: AppData, date: string) {
     });
 
     return { colleague: person, dailyHours, total, billable, internal: total - billable };
+  });
+}
+
+export type ReportFilters = {
+  period: ReportPeriod;
+  customerId?: string;
+  projectId?: string;
+  colleagueId?: string;
+};
+
+export function filterTimeEntriesForReport(data: AppData, filters: ReportFilters) {
+  const latestDate = data.timeEntries.reduce((latest, entry) => entry.date > latest ? entry.date : latest, data.timeEntries[0]?.date ?? '');
+  const customerProjectIds = filters.customerId
+    ? new Set(data.projects.filter((project) => project.customerId === filters.customerId).map((project) => project.id))
+    : null;
+  let startDate = '';
+
+  if (filters.period !== 'all' && latestDate) {
+    const start = new Date(`${latestDate}T00:00:00.000Z`);
+    start.setUTCDate(start.getUTCDate() - Number(filters.period) + 1);
+    startDate = start.toISOString().slice(0, 10);
+  }
+
+  return data.timeEntries.filter((entry) => {
+    if (startDate && (entry.date < startDate || entry.date > latestDate)) return false;
+    if (filters.customerId && !customerProjectIds?.has(entry.projectId)) return false;
+    if (filters.projectId && entry.projectId !== filters.projectId) return false;
+    if (filters.colleagueId && entry.colleagueId !== filters.colleagueId) return false;
+    return true;
   });
 }
 

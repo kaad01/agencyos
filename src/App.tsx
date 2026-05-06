@@ -1,12 +1,11 @@
 import { type DragEvent, useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, HeartPulse, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
-import { addDays, byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, moveTicketOnBoard, priorities, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, weekStartDate, weeklyTimesheetByColleague, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
+import { addDays, byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, moveTicketOnBoard, priorities, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, filterTimeEntriesForReport, projectStatuses, ticketLoggedHours, ticketStatuses, weekStartDate, weeklyTimesheetByColleague, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type ReportPeriod, type TimeEntry } from './domain';
 
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
 type DragTicket = { id: string; status: TicketStatus };
 type ActiveTimer = { projectId: string; ticketId: string; colleagueId: string; billable: boolean; note: string; startedAt: string };
-type ReportPeriod = 'all' | '7' | '30';
 
 const storageKey = 'agencyos.ops.v1';
 const activeTimerKey = 'agencyos.activeTimer.v1';
@@ -56,15 +55,6 @@ function elapsedTimerLabel(startedAt: string, now = Date.now()) {
   const minutes = Math.floor((elapsedSeconds % 3600) / 60);
   const seconds = elapsedSeconds % 60;
   return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
-}
-
-function filterTimeEntriesByPeriod(entries: TimeEntry[], period: ReportPeriod) {
-  if (period === 'all' || !entries.length) return entries;
-  const latestDate = entries.reduce((latest, entry) => entry.date > latest ? entry.date : latest, entries[0].date);
-  const start = new Date(`${latestDate}T00:00:00.000Z`);
-  start.setUTCDate(start.getUTCDate() - Number(period) + 1);
-  const startDate = start.toISOString().slice(0, 10);
-  return entries.filter((entry) => entry.date >= startDate && entry.date <= latestDate);
 }
 
 export function App() {
@@ -235,8 +225,8 @@ export function App() {
     setData((current) => moveTicketOnBoard(current, ticketId, status, beforeTicketId));
   }
 
-  function exportCsv() {
-    const rows = [['Date', 'Customer', 'Project', 'Ticket', 'Person', 'Hours', 'Billable', 'Note'], ...data.timeEntries.map((entry) => [entry.date, customerName(data, byId(data.projects, entry.projectId)?.customerId ?? ''), projectName(data, entry.projectId), ticketTitle(data, entry.ticketId), colleagueName(data, entry.colleagueId), String(entry.hours), entry.billable ? 'yes' : 'no', entry.note])];
+  function exportCsv(entries = data.timeEntries) {
+    const rows = [['Date', 'Customer', 'Project', 'Ticket', 'Person', 'Hours', 'Billable', 'Note'], ...entries.map((entry) => [entry.date, customerName(data, byId(data.projects, entry.projectId)?.customerId ?? ''), projectName(data, entry.projectId), ticketTitle(data, entry.ticketId), colleagueName(data, entry.colleagueId), String(entry.hours), entry.billable ? 'yes' : 'no', entry.note])];
     const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const link = document.createElement('a');
@@ -375,15 +365,20 @@ function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCan
   return <section className="timerControl"><TimerReset size={20}/><div><p className="eyebrow">Start/stop timer</p><strong>Track live work before it becomes a timesheet entry.</strong><span>Choose a project or ticket; stopping the timer creates a billable time entry rounded to the nearest quarter-hour.</span></div><label>Project<select value={projectId} onChange={(event) => { setProjectId(event.target.value); setTicketId(''); }}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select value={selectedTicketId} onChange={(event) => setTicketId(event.target.value)}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select></label><button disabled={!projectId} onClick={() => onStartTimer(projectId, selectedTicketId)}><Clock3 size={16}/>Start timer</button></section>;
 }
 
-function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: () => void; onLogTime: () => void }) {
+function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: (entries?: TimeEntry[]) => void; onLogTime: () => void }) {
   const [period, setPeriod] = useState<ReportPeriod>('all');
-  const reportTimeEntries = filterTimeEntriesByPeriod(data.timeEntries, period);
+  const [customerId, setCustomerId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [colleagueId, setColleagueId] = useState('');
+  const customerProjectsForFilter = customerId ? data.projects.filter((project) => project.customerId === customerId) : data.projects;
+  const selectedProjectId = customerProjectsForFilter.some((project) => project.id === projectId) ? projectId : '';
+  const reportTimeEntries = filterTimeEntriesForReport(data, { period, customerId, projectId: selectedProjectId, colleagueId });
   const scopedData = { ...data, timeEntries: reportTimeEntries };
   const scopedMetrics = calculateMetrics(scopedData);
   const projectsWithTime = data.projects.filter((project) => reportTimeEntries.some((entry) => entry.projectId === project.id));
   const latestDate = data.timeEntries.reduce((latest, entry) => entry.date > latest ? entry.date : latest, data.timeEntries[0]?.date ?? '');
   const hasReportRows = projectsWithTime.length > 0;
-  return <section className="grid"><article className="panel wide"><div className="reportToolbar"><PanelTitle eyebrow="Reports" title="Project profitability and hours" action="Export CSV" onAction={onExport}/><label className="reportFilters"><span>Period</span><select value={period} onChange={(event) => setPeriod(event.target.value as ReportPeriod)}>{Object.entries(reportPeriods).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div>{hasReportRows ? projectsWithTime.map((project) => <div className="reportRow" key={project.id}><div><strong>{project.name}</strong><small>{customerName(data, project.customerId)}</small></div><span>{projectHours(scopedData, project.id)}h total</span><span>{projectBillableHours(scopedData, project.id)}h billable</span><span>{projectNonBillableHours(scopedData, project.id)}h non-billable</span><span>{projectBudgetUsedPercent(scopedData, project.id)}% budget</span><b>{formatCurrency(projectRevenue(scopedData, project.id))}</b><small>{formatCurrency(projectBudgetRemaining(scopedData, project.id))} left · {formatCurrency(projectEffectiveRate(scopedData, project.id))}/h effective</small></div>) : <EmptyState title="Reports need project time" body="Log time or widen the report period to turn this into an agency revenue and utilization cockpit." action="Log time" onAction={onLogTime}/>}</article><article className="panel"><Download/><h3>Report summary</h3><p>{scopedMetrics.totalHours}h tracked, {scopedMetrics.billableHours}h billable, {formatCurrency(scopedMetrics.revenue)} earned from logged work.</p><div className="reportSummaryGrid"><span><strong>{scopedMetrics.utilization}%</strong><small>billable ratio</small></span><span><strong>{projectsWithTime.length}</strong><small>projects with time</small></span><span><strong>{formatCurrency(metrics.revenue - scopedMetrics.revenue)}</strong><small>outside this period</small></span></div>{period !== 'all' && latestDate ? <p className="fieldHint">Window is calculated through the newest logged entry: {latestDate}.</p> : null}</article></section>;
+  return <section className="grid"><article className="panel wide"><div className="reportToolbar"><PanelTitle eyebrow="Reports" title="Project profitability and hours" action="Export CSV" onAction={() => onExport(reportTimeEntries)}/><div className="reportFilters reportFilterGrid"><label><span>Period</span><select value={period} onChange={(event) => setPeriod(event.target.value as ReportPeriod)}>{Object.entries(reportPeriods).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label><span>Customer</span><select value={customerId} onChange={(event) => { setCustomerId(event.target.value); setProjectId(''); }}><option value="">All customers</option>{data.customers.map((customer) => <option value={customer.id} key={customer.id}>{customer.name}</option>)}</select></label><label><span>Project</span><select value={selectedProjectId} onChange={(event) => setProjectId(event.target.value)}><option value="">All projects</option>{customerProjectsForFilter.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label><span>Person</span><select value={colleagueId} onChange={(event) => setColleagueId(event.target.value)}><option value="">Everyone</option>{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label></div></div>{hasReportRows ? projectsWithTime.map((project) => <div className="reportRow" key={project.id}><div><strong>{project.name}</strong><small>{customerName(data, project.customerId)}</small></div><span>{projectHours(scopedData, project.id)}h total</span><span>{projectBillableHours(scopedData, project.id)}h billable</span><span>{projectNonBillableHours(scopedData, project.id)}h non-billable</span><span>{projectBudgetUsedPercent(scopedData, project.id)}% budget</span><b>{formatCurrency(projectRevenue(scopedData, project.id))}</b><small>{formatCurrency(projectBudgetRemaining(scopedData, project.id))} left · {formatCurrency(projectEffectiveRate(scopedData, project.id))}/h effective</small></div>) : <EmptyState title="No time matches these filters" body="Adjust the report filters or log time to turn this into an agency revenue and utilization cockpit." action="Log time" onAction={onLogTime}/>}</article><article className="panel"><Download/><h3>Report summary</h3><p>{scopedMetrics.totalHours}h tracked, {scopedMetrics.billableHours}h billable, {formatCurrency(scopedMetrics.revenue)} earned from the selected scope.</p><div className="reportSummaryGrid"><span><strong>{scopedMetrics.utilization}%</strong><small>billable ratio</small></span><span><strong>{projectsWithTime.length}</strong><small>projects with time</small></span><span><strong>{formatCurrency(metrics.revenue - scopedMetrics.revenue)}</strong><small>outside this scope</small></span></div>{period !== 'all' && latestDate ? <p className="fieldHint">Window is calculated through the newest logged entry: {latestDate}.</p> : null}<p className="fieldHint">CSV export follows the active period, customer, project, and person filters.</p></article></section>;
 }
 
 function CustomersView({ data, selectedCustomer, onSelectCustomer, onUpdateHealth, onNew, onNewProject, onOpenProject, onLogTime }: { data: AppData; selectedCustomer?: Customer; onSelectCustomer: (id: string) => void; onUpdateHealth: (id: string, health: CustomerHealth) => void; onNew: () => void; onNewProject: () => void; onOpenProject: (id: string) => void; onLogTime: () => void }) {

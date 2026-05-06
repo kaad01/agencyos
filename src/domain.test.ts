@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectHours, projectNonBillableHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -101,6 +101,12 @@ describe('AgencyOS operations metrics', () => {
 
     expect(moved.tickets.map((ticket) => ticket.id)).toEqual(['tic-brief', 'tic-assets', 'tic-scope', 'tic-interviews']);
     expect(moved.tickets.at(-1)?.status).toBe('In progress');
+  });
+
+  it('filters report time by period, customer, project, and person', () => {
+    expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-acme' }).map((entry) => entry.id)).toEqual(['time-3', 'time-4']);
+    expect(filterTimeEntriesForReport(initialData, { period: 'all', projectId: 'proj-brand', colleagueId: 'col-sara' }).map((entry) => entry.id)).toEqual(['time-2']);
+    expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-northstar', projectId: 'proj-erp' })).toHaveLength(0);
   });
 
   it('formats agency budgets as EUR', () => {
