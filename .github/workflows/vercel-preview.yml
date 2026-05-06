@@ -130,7 +130,12 @@ jobs:
           Smoke check: $SMOKE_RESULT
           Cleanup: this preview is removed automatically when the PR is closed or merged.
           EOF
-          gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/preview-comment.md
+          COMMENT_BODY="$(python3 - <<'PY'
+          import json
+          print(json.dumps(open('/tmp/preview-comment.md').read()))
+          PY
+          )"
+          gh api --method POST "repos/$REPO/issues/$PR_NUMBER/comments" -f body="$COMMENT_BODY"
 
   cleanup:
     name: cleanup
