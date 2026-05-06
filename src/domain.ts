@@ -32,6 +32,7 @@ export type Project = {
   startDate: string;
   endDate: string;
   summary: string;
+  memberIds: string[];
 };
 
 export type Ticket = {
@@ -82,9 +83,9 @@ export const initialData: AppData = {
     { id: 'col-leo', name: 'Leo Hart', role: 'Finance Ops', capacity: 48, billableRate: 90, active: true },
   ],
   projects: [
-    { id: 'proj-brand', name: 'Brand refresh rollout', customerId: 'cust-northstar', leadId: 'col-mina', budget: 42000, hourlyRate: 120, status: 'Active', startDate: '2026-05-01', endDate: '2026-06-18', summary: 'Roll out the new positioning, visual identity, and launch assets.' },
-    { id: 'proj-erp', name: 'ERP discovery sprint', customerId: 'cust-acme', leadId: 'col-jonas', budget: 18000, hourlyRate: 110, status: 'At risk', startDate: '2026-05-04', endDate: '2026-05-31', summary: 'Map processes, risks, and software selection criteria.' },
-    { id: 'proj-market', name: 'Market entry playbook', customerId: 'cust-helio', leadId: 'col-sara', budget: 27000, hourlyRate: 115, status: 'Planning', startDate: '2026-05-22', endDate: '2026-07-09', summary: 'Create launch plan for DACH retail expansion.' },
+    { id: 'proj-brand', name: 'Brand refresh rollout', customerId: 'cust-northstar', leadId: 'col-mina', budget: 42000, hourlyRate: 120, status: 'Active', startDate: '2026-05-01', endDate: '2026-06-18', summary: 'Roll out the new positioning, visual identity, and launch assets.', memberIds: ['col-mina', 'col-sara'] },
+    { id: 'proj-erp', name: 'ERP discovery sprint', customerId: 'cust-acme', leadId: 'col-jonas', budget: 18000, hourlyRate: 110, status: 'At risk', startDate: '2026-05-04', endDate: '2026-05-31', summary: 'Map processes, risks, and software selection criteria.', memberIds: ['col-jonas', 'col-leo'] },
+    { id: 'proj-market', name: 'Market entry playbook', customerId: 'cust-helio', leadId: 'col-sara', budget: 27000, hourlyRate: 115, status: 'Planning', startDate: '2026-05-22', endDate: '2026-07-09', summary: 'Create launch plan for DACH retail expansion.', memberIds: ['col-sara', 'col-mina'] },
   ],
   tickets: [
     { id: 'tic-brief', projectId: 'proj-brand', title: 'Finalize launch briefing', description: 'Confirm launch scope, audience, and decision makers.', assigneeId: 'col-mina', status: 'In progress', priority: 'High', estimateHours: 8, dueDate: '2026-05-12' },
