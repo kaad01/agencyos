@@ -10,7 +10,7 @@ The loop should produce:
 
 - GitHub issues with clear acceptance criteria
 - focused branches
-- readable PRs
+- readable PRs with live test links only when Kaan/product-owner review is needed
 - automated checks
 - QA/review feedback
 - product decisions informed by comparable tools
@@ -83,12 +83,22 @@ Output:
 6. Create a focused branch.
 7. Implement the smallest valuable slice.
 8. Run relevant checks.
-9. Open a readable PR using the AgencyOS PR readability skill.
-10. Ask QA/review agents to critique the PR.
-11. Update PR or create follow-up issues from review.
-12. Merge only if CI passes and the merge policy allows it.
-13. Deploy/smoke-check when runtime changed.
-14. Report summary to Kaan with links, checks, risk, and the next human decision if one exists.
+9. If Kaan/product-owner review is needed before merge, add the `needs-live-review` label so CI/CD creates a Vercel preview deployment and smoke-checks it.
+10. Open a readable PR using the AgencyOS PR readability skill; include the preview deployment URL when required and always include the production/live URL.
+11. Ask QA/review agents to critique the PR.
+12. Update PR or create follow-up issues from review.
+13. Merge only if CI passes and the merge policy allows it.
+14. Deploy/smoke-check when runtime changed.
+15. Report summary to Kaan with PR link, preview/live link, checks, risk, and the next human decision if one exists.
+
+### Post-merge continuation
+
+The product loop should not wait for the normal 2-hour cadence after a PR merges.
+
+- If Clove merges the PR directly, Clove should immediately continue to the next high-leverage slice after smoke-checking master.
+- If Kaan merges in GitHub, the `AgencyOS post-merge continuation watcher` checks for a newly merged PR and starts the next product loop shortly after merge.
+- The watcher stores its last processed merged PR in `memory/agencyos-post-merge-state.json` so it does not repeat work for the same merge.
+- If another PR is already open/in progress after the merge, the watcher advances/reviews that PR instead of starting a competing branch.
 
 ### Human taste gates
 
@@ -112,6 +122,7 @@ Each meaningful PR should include evidence for:
 
 - local checks: `npm run db:validate` when relevant, `npm run lint`, `npm run test`, `npm run build`
 - UI proof for visual work: screenshot, GIF, or clear reviewer guide
+- live test link: Vercel preview URL before merge only when `needs-live-review` is used, plus production/live URL after merge
 - product fit: why this matters for consulting agencies
 - QA result: blocker/no-blocker review or follow-up issues
 - rollback/risk: what could break and how to revert
@@ -158,6 +169,7 @@ Minimum sections:
 
 - Why
 - What changed
+- Live test link
 - Reviewer guide
 - Screenshots/demo for UI work
 - Verification
@@ -174,6 +186,7 @@ Allowed automatically:
 - run checks
 - update docs/issues
 - deploy preview/production when Kaan explicitly asks or for already-approved safe changes
+- delete preview deployments automatically when PRs are closed or merged
 
 Auto-merge allowed after Kaan approval on May 5, 2026:
 
@@ -222,6 +235,7 @@ The loop should improve these over time:
 The runtime has two scheduled loops installed:
 
 - `AgencyOS continuous product build loop` — every 2 hours. Selects or advances one high-leverage issue/PR, implements a small slice, opens a readable PR, performs QA, and reports back. Job id: `9530e704-510e-46eb-876c-0cbd5594ac82`.
+- `AgencyOS post-merge continuation watcher` — every 5 minutes. Detects newly merged PRs and immediately starts/advances the next product loop instead of waiting for the 2-hour cadence.
 - `AgencyOS morning progress digest` — daily at 07:00 UTC. Summarizes the last 24 hours of PRs, CI/deploys, issues, autonomous work, and pending approvals. Job id: `b69eb63c-bd3b-4885-a7bb-6ca4ca618676`.
 - `AgencyOS weekly competitor and QA review` — Mondays at 10:00 UTC. Reviews product/repo state against MOCO, Trello, HubSpot, and Clockify, then creates issues or PRs for adoption gaps. Job id: `c129a260-d73f-401e-aa07-6e92d1e98fbd`.
 

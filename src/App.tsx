@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type DragEvent, useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, HeartPulse, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
-import { byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
+import { byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, moveTicketOnBoard, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
 
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
+type DragTicket = { id: string; status: TicketStatus };
 
 const storageKey = 'agencyos.ops.v1';
 const healthOptions: CustomerHealth[] = ['Excellent', 'Healthy', 'Needs care', 'New'];
@@ -120,8 +121,8 @@ export function App() {
     setModal(null);
   }
 
-  function moveTicket(ticketId: string, status: TicketStatus) {
-    setData((current) => ({ ...current, tickets: current.tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status } : ticket) }));
+  function moveTicket(ticketId: string, status: TicketStatus, beforeTicketId?: string) {
+    setData((current) => moveTicketOnBoard(current, ticketId, status, beforeTicketId));
   }
 
   function exportCsv() {
@@ -178,20 +179,60 @@ function Dashboard({ data, metrics, onSelectProject, onNewProject, onNewTicket, 
   return <><section className="hero"><div><p className="eyebrow">MOCO + Trello + Clockify core</p><h2>Run consulting delivery from project cockpit to reports.</h2><p>Track project health, assign ticket work, log billable time, and understand where the agency spends effort.</p></div><div className="heroCard"><TimerReset/><strong>Today’s useful loop</strong><span>Create project → add ticket → assign colleague → log time → review reports.</span><div className="quickActions"><button onClick={onNewProject}><Plus size={16}/>Project</button><button className="ghost" onClick={onNewTicket}>Ticket</button><button className="ghost" onClick={onLogTime}>Time</button><button className="ghost" onClick={onOpenReports}>Reports</button></div></div></section><section className="stats">{stats.map(({ label, value, delta, icon: Icon }) => <article className="stat" key={label}><Icon/><span>{label}</span><strong>{value}</strong><small>{delta}</small></article>)}</section><section className="grid"><article className="panel wide"><PanelTitle eyebrow="Project cockpit" title="Active projects" />{data.projects.length ? data.projects.map((project) => <button className="projectButton" key={project.id} onClick={() => onSelectProject(project.id)}><ProjectSummary data={data} project={project}/></button>) : <EmptyState title="No projects yet" body="Create the first client project, then add tickets and time from its cockpit." action="Create project" onAction={onNewProject}/>}</article><article className="panel"><PanelTitle eyebrow="Ticket system" title="Priority work" action="New ticket" onAction={onNewTicket}/>{urgentTickets.length ? urgentTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id}/>) : <EmptyState title="No high-priority tickets" body="Add delivery work when a project needs attention." action="Add ticket" onAction={onNewTicket}/>}</article><article className="panel"><PanelTitle eyebrow="Time tracking" title="Recent entries" action="Log time" onAction={onLogTime}/>{data.timeEntries.length ? data.timeEntries.slice(0, 4).map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>) : <EmptyState title="No time logged" body="Log time against a ticket to make reports and budgets useful." action="Log time" onAction={onLogTime}/>}</article></section></>;
 }
 
-function ProjectsView({ data, projects, selectedProject, onSelectProject, onNewProject, onNewTicket, onLogTime, onMoveTicket }: { data: AppData; projects: Project[]; selectedProject: Project; onSelectProject: (id: string) => void; onNewProject: () => void; onNewTicket: () => void; onLogTime: () => void; onMoveTicket: (ticketId: string, status: TicketStatus) => void }) {
+function ProjectsView({ data, projects, selectedProject, onSelectProject, onNewProject, onNewTicket, onLogTime, onMoveTicket }: { data: AppData; projects: Project[]; selectedProject: Project; onSelectProject: (id: string) => void; onNewProject: () => void; onNewTicket: () => void; onLogTime: () => void; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void }) {
   const tickets = data.tickets.filter((ticket) => ticket.projectId === selectedProject.id);
   const time = data.timeEntries.filter((entry) => entry.projectId === selectedProject.id);
   return <section className="projectWorkspace"><aside className="projectListRail"><PanelTitle eyebrow="Projects" title="Portfolio" />{projects.length ? projects.map((project) => <button className={project.id === selectedProject.id ? 'selected projectRailItem' : 'projectRailItem'} key={project.id} onClick={() => onSelectProject(project.id)}>{project.name}<small>{customerName(data, project.customerId)}</small></button>) : <EmptyState title="No matching projects" body="Try another search term or create a new engagement for this customer portfolio." action="Create project" onAction={onNewProject}/>}</aside><article className="panel projectCockpit"><div className="cockpitHead"><div><p className="eyebrow">{customerName(data, selectedProject.customerId)} · Lead {leadName(data, selectedProject.leadId)}</p><h2>{selectedProject.name}</h2><p>{selectedProject.summary}</p></div><em className={statusClass(selectedProject.status)}>{selectedProject.status}</em></div><section className="miniStats"><span><strong>{tickets.filter((ticket) => ticket.status !== 'Done').length}</strong> open tickets</span><span><strong>{projectHours(data, selectedProject.id)}h</strong> logged</span><span><strong>{projectBillableHours(data, selectedProject.id)}h</strong> billable</span><span><strong>{formatCurrency(projectRevenue(data, selectedProject.id))}</strong> earned</span></section><div className="cockpitActions"><button onClick={onNewTicket}><Plus size={16}/>Add ticket</button><button className="ghost" onClick={onLogTime}><TimerReset size={16}/>Log time</button></div><ProjectTeamStrip data={data} project={selectedProject}/><Board data={data} tickets={tickets} onMoveTicket={onMoveTicket}/><PanelTitle eyebrow="Timesheet" title="Project time" />{time.length ? time.map((entry) => <TimeRow data={data} entry={entry} key={entry.id}/>) : <EmptyState title="No time on this project yet" body="Log the first billable or internal entry to unlock budget and delivery signals." action="Log time" onAction={onLogTime}/>}</article></section>;
 }
 
-function Board({ data, tickets, onMoveTicket }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus) => void }) {
-  return <div className="board">{ticketStatuses.map((status) => {
+function Board({ data, tickets, onMoveTicket }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void }) {
+  const [draggedTicket, setDraggedTicket] = useState<DragTicket | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ status: TicketStatus; beforeTicketId?: string } | null>(null);
+
+  function startDrag(event: DragEvent<HTMLElement>, ticket: Ticket) {
+    const payload: DragTicket = { id: ticket.id, status: ticket.status };
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/json', JSON.stringify(payload));
+    event.dataTransfer.setData('text/plain', ticket.id);
+    setDraggedTicket(payload);
+  }
+
+  function readDrag(event: DragEvent<HTMLElement>) {
+    if (draggedTicket) return draggedTicket;
+    try {
+      return JSON.parse(event.dataTransfer.getData('application/json')) as DragTicket;
+    } catch {
+      const id = event.dataTransfer.getData('text/plain');
+      const ticket = tickets.find((item) => item.id === id);
+      return ticket ? { id: ticket.id, status: ticket.status } : null;
+    }
+  }
+
+  function allowDrop(event: DragEvent<HTMLElement>, status: TicketStatus, beforeTicketId?: string) {
+    if (!draggedTicket) return;
+    event.preventDefault();
+    if (beforeTicketId) event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    setDropTarget({ status, beforeTicketId });
+  }
+
+  function drop(event: DragEvent<HTMLElement>, status: TicketStatus, beforeTicketId?: string) {
+    event.preventDefault();
+    if (beforeTicketId) event.stopPropagation();
+    const ticket = readDrag(event);
+    if (ticket && ticket.id !== beforeTicketId) onMoveTicket(ticket.id, status, beforeTicketId);
+    setDraggedTicket(null);
+    setDropTarget(null);
+  }
+
+  return <div className="board" aria-label="Drag tickets between columns or use each card status selector">{ticketStatuses.map((status) => {
     const columnTickets = tickets.filter((ticket) => ticket.status === status);
-    return <section className="boardColumn" key={status}><h3>{status}</h3>{columnTickets.length ? columnTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(next) => onMoveTicket(ticket.id, next)}/>) : <p className="columnEmpty">No {status.toLowerCase()} tickets</p>}</section>;
+    const isColumnTarget = dropTarget?.status === status && !dropTarget.beforeTicketId;
+    return <section className={`boardColumn ${draggedTicket ? 'dropReady' : ''} ${isColumnTarget ? 'dropTarget' : ''}`} key={status} onDragOver={(event) => allowDrop(event, status)} onDrop={(event) => drop(event, status)} onDragLeave={() => setDropTarget(null)}><h3>{status}</h3>{columnTickets.length ? columnTickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} draggable onDragStart={(event) => startDrag(event, ticket)} onDragEnd={() => { setDraggedTicket(null); setDropTarget(null); }} onDragOver={(event) => allowDrop(event, status, ticket.id)} onDrop={(event) => drop(event, status, ticket.id)} isDragging={draggedTicket?.id === ticket.id} isDropTarget={dropTarget?.beforeTicketId === ticket.id} onMove={(next) => onMoveTicket(ticket.id, next)}/>) : <p className="columnEmpty">No {status.toLowerCase()} tickets — drop one here</p>}</section>;
   })}</div>;
 }
 
-function TicketsView({ data, tickets, onMoveTicket, onNew }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus) => void; onNew: () => void }) {
+function TicketsView({ data, tickets, onMoveTicket, onNew }: { data: AppData; tickets: Ticket[]; onMoveTicket: (ticketId: string, status: TicketStatus, beforeTicketId?: string) => void; onNew: () => void }) {
   return <section className="panel"><PanelTitle eyebrow="Tickets" title="Global ticket system" action="New ticket" onAction={onNew}/>{tickets.length ? <div className="cardGrid">{tickets.map((ticket) => <TicketCard data={data} ticket={ticket} key={ticket.id} onMove={(status) => onMoveTicket(ticket.id, status)}/>)}</div> : <EmptyState title="No tickets found" body="Create a delivery ticket or adjust search to bring work back into view." action="New ticket" onAction={onNew}/>}</section>;
 }
 
@@ -285,7 +326,7 @@ function ProjectTeamStrip({ data, project }: { data: AppData; project: Project }
 }
 
 function ProjectSummary({ data, project }: { data: AppData; project: Project }) { return <div className="projectSummary"><div><strong>{project.name}</strong><span>{customerName(data, project.customerId)} · Lead {leadName(data, project.leadId)}</span></div><em className={statusClass(project.status)}>{project.status}</em><small>{projectHours(data, project.id)}h · {projectBudgetUsedPercent(data, project.id)}% of {formatCurrency(project.budget)}</small></div>; }
-function TicketCard({ data, ticket, onMove }: { data: AppData; ticket: Ticket; onMove?: (status: TicketStatus) => void }) { return <article className="ticketCard"><div><strong>{ticket.title}</strong><p>{ticket.description}</p></div><div className="ticketMeta"><span>{projectName(data, ticket.projectId)}</span><span>{colleagueName(data, ticket.assigneeId)}</span><em className={statusClass(ticket.priority)}>{ticket.priority}</em></div><small>{ticketLoggedHours(data, ticket.id)}h logged / {ticket.estimateHours}h est · due {new Date(ticket.dueDate).toLocaleDateString()}</small>{onMove && <select value={ticket.status} onChange={(event) => onMove(event.target.value as TicketStatus)}>{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select>}</article>; }
+function TicketCard({ data, ticket, onMove, draggable = false, isDragging = false, isDropTarget = false, onDragStart, onDragEnd, onDragOver, onDrop }: { data: AppData; ticket: Ticket; onMove?: (status: TicketStatus) => void; draggable?: boolean; isDragging?: boolean; isDropTarget?: boolean; onDragStart?: (event: DragEvent<HTMLElement>) => void; onDragEnd?: () => void; onDragOver?: (event: DragEvent<HTMLElement>) => void; onDrop?: (event: DragEvent<HTMLElement>) => void }) { return <article className={`ticketCard ${draggable ? 'draggableTicket' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'dropBefore' : ''}`} draggable={draggable} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragOver={onDragOver} onDrop={onDrop}><div><strong>{ticket.title}</strong><p>{ticket.description}</p></div><div className="ticketMeta"><span>{projectName(data, ticket.projectId)}</span><span>{colleagueName(data, ticket.assigneeId)}</span><em className={statusClass(ticket.priority)}>{ticket.priority}</em></div><small>{ticketLoggedHours(data, ticket.id)}h logged / {ticket.estimateHours}h est · due {new Date(ticket.dueDate).toLocaleDateString()}</small>{onMove && <label className="statusFallback"><span>Move to</span><select value={ticket.status} onChange={(event) => onMove(event.target.value as TicketStatus)}>{ticketStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>}</article>; }
 function TimeRow({ data, entry }: { data: AppData; entry: TimeEntry }) { return <div className="timeRow"><TimerReset size={18}/><div><strong>{entry.hours}h · {projectName(data, entry.projectId)}</strong><small>{ticketTitle(data, entry.ticketId)} · {colleagueName(data, entry.colleagueId)} · {entry.date}</small></div><em className={entry.billable ? 'green' : 'neutral'}>{entry.billable ? 'Billable' : 'Internal'}</em></div>; }
 function PersonRow({ person }: { person: Colleague }) { return <div className="person"><span>{initials(person.name)}</span><div><strong>{person.name}</strong><small>{person.role}</small></div><b>{person.capacity}%</b></div>; }
 function CustomerRow({ customer, open }: { customer: Customer; open: number }) { return <div className="customer"><BriefcaseBusiness/><div><strong>{customer.name}</strong><small>{open} projects · {customer.segment}</small></div><em>{customer.health}</em></div>; }

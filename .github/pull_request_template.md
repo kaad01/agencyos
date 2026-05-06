@@ -2,6 +2,13 @@
 
 -
 
+## Live test link
+
+- Preview deployment, only when this PR needs Kaan/product-owner review:
+- Production/live after merge: https://workspace-one-blush-79.vercel.app
+- Smoke check result:
+- Cleanup: preview deployments are removed automatically when the PR is closed or merged.
+
 ## Why this matters
 
 -

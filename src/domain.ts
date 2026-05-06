@@ -177,6 +177,31 @@ export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }
 
+export function moveTicketOnBoard(data: AppData, ticketId: string, status: TicketStatus, beforeTicketId?: string): AppData {
+  const movedTicket = data.tickets.find((ticket) => ticket.id === ticketId);
+  if (!movedTicket) return data;
+
+  const updatedTicket = { ...movedTicket, status };
+  const remainingTickets = data.tickets.filter((ticket) => ticket.id !== ticketId);
+  const insertIndex = beforeTicketId ? remainingTickets.findIndex((ticket) => ticket.id === beforeTicketId) : -1;
+  const tickets = [...remainingTickets];
+
+  if (insertIndex >= 0) {
+    tickets.splice(insertIndex, 0, updatedTicket);
+  } else {
+    let lastInColumnIndex = -1;
+    for (let index = tickets.length - 1; index >= 0; index -= 1) {
+      if (tickets[index].status === status) {
+        lastInColumnIndex = index;
+        break;
+      }
+    }
+    tickets.splice(lastInColumnIndex + 1, 0, updatedTicket);
+  }
+
+  return { ...data, tickets };
+}
+
 export function calculateMetrics(data: AppData) {
   const activeProjects = data.projects.filter((project) => project.status !== 'Done');
   const billableHours = data.timeEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);

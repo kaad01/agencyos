@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
+import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -38,6 +38,21 @@ describe('AgencyOS operations metrics', () => {
     expect(colleagueLoadStatus(42)).toBe('Underbooked');
     expect(colleagueLoadStatus(72)).toBe('Healthy');
     expect(colleagueLoadStatus(101)).toBe('Overloaded');
+  });
+
+  it('moves and reorders tickets on the board without losing ticket data', () => {
+    const moved = moveTicketOnBoard(initialData, 'tic-assets', 'In progress', 'tic-brief');
+
+    expect(moved.tickets.map((ticket) => ticket.id).slice(0, 2)).toEqual(['tic-assets', 'tic-brief']);
+    expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.status).toBe('In progress');
+    expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.assigneeId).toBe('col-sara');
+  });
+
+  it('drops tickets at the end of the target status when no card target is provided', () => {
+    const moved = moveTicketOnBoard(initialData, 'tic-interviews', 'In progress');
+
+    expect(moved.tickets.map((ticket) => ticket.id)).toEqual(['tic-brief', 'tic-assets', 'tic-scope', 'tic-interviews']);
+    expect(moved.tickets.at(-1)?.status).toBe('In progress');
   });
 
   it('formats agency budgets as EUR', () => {
