@@ -10,14 +10,18 @@ AgencyOS should be built like a serious open-source product, even while small.
 
 ## Product change flow
 
-1. **Spec**: Write/update requirements in `docs/product-spec.md` or a feature-specific doc.
-2. **Branch**: Create a branch from latest `master`.
-3. **Implement**: Keep changes small and reviewable.
-4. **Test**: Run lint/build/unit tests before opening PR.
-5. **PR**: Include summary, screenshots/recording for UI, test evidence, and known tradeoffs.
-6. **Review**: Check UX simplicity, data correctness, accessibility, and maintainability.
-7. **Merge**: Squash or merge only after checks pass.
-8. **Deploy**: Vercel deploys production from `master`; preview deploys are used for PR review.
+1. **Pick one product slice**: Select exactly one user-visible outcome from an issue or roadmap gap.
+2. **Acceptance criteria**: Define the smallest behavior that would make the slice valuable.
+3. **Human checkpoint — direction**: For risky, opinionated, or strategic changes, Kaan approves the problem, scope, and desired feel before implementation.
+4. **Branch**: Create a focused branch from latest `master`.
+5. **Implement**: Keep changes small and reviewable; avoid broad rewrites.
+6. **Test**: Run lint/build/unit tests before opening PR.
+7. **PR**: Include summary, screenshots/recording for UI, test evidence, and known tradeoffs.
+8. **Review**: Check UX simplicity, data correctness, accessibility, and maintainability.
+9. **Human checkpoint — merge**: Kaan explicitly approves major UX direction, backend/data-model changes, auth/security, billing, or architecture changes before merge.
+10. **Merge**: Squash or merge only after checks pass.
+11. **Deploy + smoke**: Vercel deploys production from `master`; preview deploys are used for PR review. Runtime changes need a live smoke check.
+12. **Human checkpoint — product taste**: After deploy, Kaan reviews whether the live result feels like the product AgencyOS should become.
 
 ## Definition of done
 
@@ -26,7 +30,43 @@ AgencyOS should be built like a serious open-source product, even while small.
 - Empty/loading/error states considered.
 - Core path has at least one test where practical.
 - `npm run lint`, `npm run test`, and `npm run build` pass.
+- Product decision is captured in the PR or a follow-up issue.
+- Risky decisions have explicit human approval before merge.
 - README or docs updated if behavior changes.
+
+## Human-in-the-loop policy
+
+Agentic work is encouraged, but agents do not own product taste or risky decisions.
+
+Agents may proceed without interrupting Kaan for:
+
+- docs-only improvements
+- tests-only improvements
+- small isolated bug fixes
+- small UI polish that preserves the approved product direction
+- issue/template/community metadata
+
+Agents must pause for Kaan before merging:
+
+- auth, access-control, security, or permissions changes
+- billing/payment code
+- major schema migrations or destructive database changes
+- production secrets or environment changes
+- large architecture pivots
+- major UX flow changes where taste matters
+- anything a QA/review agent marks high risk
+
+The default posture is: move fast on reversible work, slow down on irreversible or taste-defining work.
+
+## Quality loop
+
+Every meaningful PR should have a small quality review before merge:
+
+- **Product**: Does this improve the consulting-agency workflow, or is it generic project-management filler?
+- **UX**: Is the core path obvious, polished, mobile-safe, and not overcomplicated?
+- **Engineering**: Is the implementation small, typed, tested where practical, and easy to maintain?
+- **QA**: Are obvious regressions, empty states, and edge cases covered?
+- **Release**: Did CI pass, and is rollback obvious?
 
 ## PR template
 

@@ -2,6 +2,16 @@
 
 -
 
+## Why this matters
+
+-
+
+## Reviewer guide
+
+- Core path to review:
+- Product/taste decision, if any:
+- Human approval needed before merge? yes/no — reason:
+
 ## Screenshots / GIFs
 
 Add visual proof for UI changes when relevant.
@@ -16,3 +26,12 @@ Add visual proof for UI changes when relevant.
 ## Notes
 
 Migration/config/deployment notes, if any.
+
+## Risk / rollback
+
+- Risk:
+- Rollback:
+
+## Follow-ups
+
+-

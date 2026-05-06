@@ -73,18 +73,48 @@ Output:
 
 ## Loop cadence
 
-### Daily build loop
+### Continuous build loop
 
 1. Inspect open issues, PRs, CI, and deployment state.
-2. Choose one small high-leverage issue.
-3. Write or refine acceptance criteria.
-4. Create a focused branch.
-5. Implement the smallest valuable slice.
-6. Run relevant checks.
-7. Open a readable PR using the AgencyOS PR readability skill.
-8. Ask QA/review agents to critique the PR.
-9. Update PR or create follow-up issues from review.
-10. Report summary to Kaan.
+2. If a PR/branch is already in progress, advance or review that instead of starting competing work.
+3. Choose one small high-leverage issue.
+4. Write or refine acceptance criteria.
+5. Pause for Kaan approval when the slice is risky, taste-defining, architectural, or hard to reverse.
+6. Create a focused branch.
+7. Implement the smallest valuable slice.
+8. Run relevant checks.
+9. Open a readable PR using the AgencyOS PR readability skill.
+10. Ask QA/review agents to critique the PR.
+11. Update PR or create follow-up issues from review.
+12. Merge only if CI passes and the merge policy allows it.
+13. Deploy/smoke-check when runtime changed.
+14. Report summary to Kaan with links, checks, risk, and the next human decision if one exists.
+
+### Human taste gates
+
+The loop should keep Kaan in the product-owner seat without forcing constant micromanagement.
+
+**Gate 1 — Direction**
+
+Pause before implementation when the question is “what should this feel like?” rather than “can we build this?” Examples: navigation model, core workflow shape, pricing/billing, onboarding philosophy, CRM depth, and what to remove.
+
+**Gate 2 — Merge**
+
+Pause before merge when the PR changes data model, auth/security, billing, environment, large UX flows, or architecture. Safe docs/tests/small polish can still auto-merge after CI and review.
+
+**Gate 3 — Live product judgment**
+
+After deploy, summarize the live behavior and ask whether it feels good enough, too generic, too complex, or worth iterating.
+
+### Quality gates
+
+Each meaningful PR should include evidence for:
+
+- local checks: `npm run db:validate` when relevant, `npm run lint`, `npm run test`, `npm run build`
+- UI proof for visual work: screenshot, GIF, or clear reviewer guide
+- product fit: why this matters for consulting agencies
+- QA result: blocker/no-blocker review or follow-up issues
+- rollback/risk: what could break and how to revert
 
 ### Weekly strategy loop
 
@@ -191,7 +221,8 @@ The loop should improve these over time:
 
 The runtime has two scheduled loops installed:
 
-- `AgencyOS weekday product build loop` — weekdays at 08:30 UTC. Selects one high-leverage issue, implements a small slice, opens a readable PR, and reports back. Job id: `9530e704-510e-46eb-876c-0cbd5594ac82`.
+- `AgencyOS continuous product build loop` — every 2 hours. Selects or advances one high-leverage issue/PR, implements a small slice, opens a readable PR, performs QA, and reports back. Job id: `9530e704-510e-46eb-876c-0cbd5594ac82`.
+- `AgencyOS morning progress digest` — daily at 07:00 UTC. Summarizes the last 24 hours of PRs, CI/deploys, issues, autonomous work, and pending approvals. Job id: `b69eb63c-bd3b-4885-a7bb-6ca4ca618676`.
 - `AgencyOS weekly competitor and QA review` — Mondays at 10:00 UTC. Reviews product/repo state against MOCO, Trello, HubSpot, and Clockify, then creates issues or PRs for adoption gaps. Job id: `c129a260-d73f-401e-aa07-6e92d1e98fbd`.
 
 Both jobs may now auto-merge safe PRs under the policy above. Risky product/backend/security/infra PRs still pause for Kaan approval.

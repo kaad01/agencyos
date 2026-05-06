@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, HeartPulse, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
-import { byId, calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
+import { byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerRevenue, customerTickets, formatCurrency, initialData, makeId, priorities, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, projectStatuses, ticketLoggedHours, ticketStatuses, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type TimeEntry } from './domain';
 
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
@@ -228,13 +228,24 @@ function CustomersView({ data, selectedCustomer, onSelectCustomer, onUpdateHealt
 }
 
 function TeamView({ data, onNew }: { data: AppData; onNew: () => void }) {
-  return <section className="panel"><PanelTitle eyebrow="Team" title="Colleagues and workload" action="New colleague" onAction={onNew}/>{data.colleagues.length ? <div className="peopleGrid">{data.colleagues.map((person) => {
+  const team = data.colleagues.map((person) => {
     const openTickets = data.tickets.filter((ticket) => ticket.assigneeId === person.id && ticket.status !== 'Done');
     const plannedHours = colleagueOpenTicketEstimate(data, person.id);
     const loggedHours = colleagueLoggedHours(data, person.id);
-    const load = Math.min(120, Math.round(((plannedHours + loggedHours) / Math.max(person.capacity, 1)) * 100));
-    return <article className="personCard" key={person.id}><PersonRow person={person}/><div className="deliveryFacts"><span>{openTickets.length} open tickets</span><span>{plannedHours}h planned</span><span>{loggedHours}h logged</span></div><div className="meter"><i style={{ width: `${Math.min(100, load)}%` }} /></div><small>{person.billableRate}€/h · {person.capacity}h capacity signal · {load}% delivery load</small></article>;
-  })}</div> : <EmptyState title="No teammates yet" body="Add colleagues to make capacity, assignments, and billable rates visible across the agency." action="New colleague" onAction={onNew}/>}</section>;
+    const load = colleagueDeliveryLoadPercent(data, person.id);
+    const status = colleagueLoadStatus(load);
+    const billableRatio = colleagueBillableRatio(data, person.id);
+    const projectCount = data.projects.filter((project) => project.memberIds?.includes(person.id) || project.leadId === person.id).length;
+    return { person, openTickets, plannedHours, loggedHours, load, status, billableRatio, projectCount };
+  });
+  const overloaded = team.filter((item) => item.status === 'Overloaded').length;
+  const underbooked = team.filter((item) => item.status === 'Underbooked').length;
+  const totalLogged = team.reduce((sum, item) => sum + item.loggedHours, 0);
+  const totalPlanned = team.reduce((sum, item) => sum + item.plannedHours, 0);
+
+  return <section className="panel teamCockpit"><PanelTitle eyebrow="Team" title="Capacity and time cockpit" action="New colleague" onAction={onNew}/>{data.colleagues.length ? <><div className="teamOverview"><div><p className="eyebrow">Employee time overview</p><strong>{totalLogged}h logged · {totalPlanned}h planned</strong><span>{overloaded} overloaded, {underbooked} underbooked — capacity is visible before delivery slips.</span></div><button className="ghost" onClick={onNew}><Plus size={16}/>Add capacity</button></div><div className="peopleGrid">{team.map(({ person, openTickets, plannedHours, loggedHours, load, status, billableRatio, projectCount }) => (
+    <article className={`personCard ${status.toLowerCase()}`} key={person.id}><div className="personCardHead"><PersonRow person={person}/><em className={status === 'Overloaded' ? 'amber' : status === 'Healthy' ? 'green' : 'blue'}>{status}</em></div><div className="capacityLine"><div><strong>{Math.min(100, load)}%</strong><small>delivery load</small></div><div><strong>{billableRatio}%</strong><small>billable ratio</small></div><div><strong>{projectCount}</strong><small>projects</small></div></div><div className="deliveryFacts"><span>{openTickets.length} open tickets</span><span>{plannedHours}h planned</span><span>{loggedHours}h logged</span></div><div className="meter" aria-label={`${person.name} delivery load ${load}%`}><i style={{ width: `${Math.min(100, load)}%` }} /></div><small>{person.billableRate}€/h · {person.capacity}h capacity signal · {load}% load from assigned work and logged time</small></article>
+  ))}</div></> : <EmptyState title="No teammates yet" body="Add colleagues to make capacity, assignments, and billable rates visible across the agency." action="New colleague" onAction={onNew}/>}</section>;
 }
 
 function EntityModal({ modal, data, selectedProjectId, onClose, onProject, onTicket, onTime, onCustomer, onColleague }: { modal: Modal; data: AppData; selectedProjectId: string; onClose: () => void; onProject: (form: FormData) => void; onTicket: (form: FormData) => void; onTime: (form: FormData) => void; onCustomer: (form: FormData) => void; onColleague: (form: FormData) => void }) {
@@ -266,7 +277,11 @@ function ColleagueFields() { return <><label>Name<input name="name" required pla
 
 function ProjectTeamStrip({ data, project }: { data: AppData; project: Project }) {
   const members = data.colleagues.filter((person) => project.memberIds?.includes(person.id) || person.id === project.leadId);
-  return <section className="projectTeamStrip" aria-label="Project team"><div><p className="eyebrow">Team assignment</p><strong>{members.length} people on this engagement</strong></div>{members.map((person) => <span key={person.id}>{initials(person.name)}<small>{person.name} · {person.capacity}%</small></span>)}</section>;
+  return <section className="projectTeamStrip" aria-label="Project team"><div><p className="eyebrow">Team assignment</p><strong>{members.length} people on this engagement</strong></div>{members.map((person) => {
+    const openWork = data.tickets.filter((ticket) => ticket.projectId === project.id && ticket.assigneeId === person.id && ticket.status !== 'Done');
+    const loggedHours = data.timeEntries.filter((entry) => entry.projectId === project.id && entry.colleagueId === person.id).reduce((sum, entry) => sum + entry.hours, 0);
+    return <span key={person.id}>{initials(person.name)}<small>{person.name} · {loggedHours}h · {openWork.length} open</small></span>;
+  })}</section>;
 }
 
 function ProjectSummary({ data, project }: { data: AppData; project: Project }) { return <div className="projectSummary"><div><strong>{project.name}</strong><span>{customerName(data, project.customerId)} · Lead {leadName(data, project.leadId)}</span></div><em className={statusClass(project.status)}>{project.status}</em><small>{projectHours(data, project.id)}h · {projectBudgetUsedPercent(data, project.id)}% of {formatCurrency(project.budget)}</small></div>; }

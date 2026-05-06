@@ -155,6 +155,24 @@ export function colleagueOpenTicketEstimate(data: AppData, colleagueId: string) 
   return data.tickets.filter((ticket) => ticket.assigneeId === colleagueId && ticket.status !== 'Done').reduce((sum, ticket) => sum + ticket.estimateHours, 0);
 }
 
+export function colleagueBillableRatio(data: AppData, colleagueId: string) {
+  const entries = data.timeEntries.filter((entry) => entry.colleagueId === colleagueId);
+  const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+  if (!totalHours) return 0;
+  const billableHours = entries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+  return Math.round((billableHours / totalHours) * 100);
+}
+
+export function colleagueDeliveryLoadPercent(data: AppData, colleagueId: string) {
+  const colleague = data.colleagues.find((person) => person.id === colleagueId);
+  if (!colleague || colleague.capacity <= 0) return 0;
+  return Math.round(((colleagueOpenTicketEstimate(data, colleagueId) + colleagueLoggedHours(data, colleagueId)) / colleague.capacity) * 100);
+}
+
+export function colleagueLoadStatus(load: number) {
+  return load >= 95 ? 'Overloaded' : load >= 65 ? 'Healthy' : 'Underbooked';
+}
+
 export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMetrics, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
+import { calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, formatCurrency, initialData, projectBillableHours, projectBudgetUsedPercent, projectHours, projectRevenue, ticketLoggedHours } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -29,6 +29,15 @@ describe('AgencyOS operations metrics', () => {
     expect(customerTickets(initialData, 'cust-acme').map((ticket) => ticket.id)).toEqual(['tic-scope']);
     expect(colleagueLoggedHours(initialData, 'col-sara')).toBe(2);
     expect(colleagueOpenTicketEstimate(initialData, 'col-sara')).toBe(9);
+  });
+
+  it('classifies colleague delivery load and billable ratio for capacity planning', () => {
+    expect(colleagueBillableRatio(initialData, 'col-leo')).toBe(0);
+    expect(colleagueBillableRatio(initialData, 'col-mina')).toBe(100);
+    expect(colleagueDeliveryLoadPercent(initialData, 'col-sara')).toBe(17);
+    expect(colleagueLoadStatus(42)).toBe('Underbooked');
+    expect(colleagueLoadStatus(72)).toBe('Healthy');
+    expect(colleagueLoadStatus(101)).toBe('Overloaded');
   });
 
   it('formats agency budgets as EUR', () => {
