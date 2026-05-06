@@ -2,6 +2,12 @@
 
 -
 
+## Live test link
+
+- Preview deployment:
+- Production/live after merge: https://workspace-one-blush-79.vercel.app
+- Smoke check result:
+
 ## Why this matters
 
 -

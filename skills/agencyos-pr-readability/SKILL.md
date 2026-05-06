@@ -14,8 +14,9 @@ A good PR should answer, in order:
 1. **What changed?**
 2. **Why does it matter?**
 3. **How was it verified?**
-4. **What should the reviewer look at first?**
-5. **What risks or follow-ups remain?**
+4. **Where can Kaan test it live?**
+5. **What should the reviewer look at first?**
+6. **What risks or follow-ups remain?**
 
 Do not open vague PRs with only a generic summary.
 
@@ -33,7 +34,8 @@ Do not open vague PRs with only a generic summary.
 5. Run the smallest meaningful gates:
    - code/schema: `npm run db:validate`, `npm run lint`, `npm run test`, `npm run build`
    - docs/assets only: at least inspect files and run build if README asset paths may affect rendering
-6. Commit with a concrete message.
+6. For runtime/UI changes, create a Vercel preview deployment and smoke-check the URL when possible.
+7. Commit with a concrete message.
 
 ## PR title style
 
@@ -65,6 +67,12 @@ One or two short paragraphs explaining the user/product problem.
 - Clear bullet
 - Clear bullet
 - Clear bullet
+
+## Live test link
+
+- Preview deployment: <url>
+- Production/live after merge: https://workspace-one-blush-79.vercel.app
+- Smoke check: <result>
 
 ## Reviewer guide
 
@@ -105,7 +113,7 @@ Include visual proof:
 - screenshots
 - GIFs
 - generated assets list
-- live demo link when relevant
+- live preview/demo link always for UI/runtime changes
 
 Add a `Reviewer guide` that points to the most visual/readable files first, usually:
 
@@ -158,6 +166,7 @@ gh pr create \
 Tell Kaan only what matters:
 
 - PR number/link
+- live preview/test link
 - branch
 - 3–6 bullets of what changed
 - checks passed

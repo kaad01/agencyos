@@ -10,7 +10,7 @@ The loop should produce:
 
 - GitHub issues with clear acceptance criteria
 - focused branches
-- readable PRs
+- readable PRs with live test links
 - automated checks
 - QA/review feedback
 - product decisions informed by comparable tools
@@ -83,12 +83,13 @@ Output:
 6. Create a focused branch.
 7. Implement the smallest valuable slice.
 8. Run relevant checks.
-9. Open a readable PR using the AgencyOS PR readability skill.
-10. Ask QA/review agents to critique the PR.
-11. Update PR or create follow-up issues from review.
-12. Merge only if CI passes and the merge policy allows it.
-13. Deploy/smoke-check when runtime changed.
-14. Report summary to Kaan with links, checks, risk, and the next human decision if one exists.
+9. Create a Vercel preview deployment for runtime/UI changes and smoke-check that the URL responds.
+10. Open a readable PR using the AgencyOS PR readability skill; include the preview deployment URL and the production/live URL.
+11. Ask QA/review agents to critique the PR.
+12. Update PR or create follow-up issues from review.
+13. Merge only if CI passes and the merge policy allows it.
+14. Deploy/smoke-check when runtime changed.
+15. Report summary to Kaan with PR link, preview/live link, checks, risk, and the next human decision if one exists.
 
 ### Human taste gates
 
@@ -112,6 +113,7 @@ Each meaningful PR should include evidence for:
 
 - local checks: `npm run db:validate` when relevant, `npm run lint`, `npm run test`, `npm run build`
 - UI proof for visual work: screenshot, GIF, or clear reviewer guide
+- live test link: Vercel preview URL before merge when available, plus production/live URL after merge
 - product fit: why this matters for consulting agencies
 - QA result: blocker/no-blocker review or follow-up issues
 - rollback/risk: what could break and how to revert
@@ -158,6 +160,7 @@ Minimum sections:
 
 - Why
 - What changed
+- Live test link
 - Reviewer guide
 - Screenshots/demo for UI work
 - Verification
