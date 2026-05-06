@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -132,6 +132,14 @@ describe('AgencyOS operations metrics', () => {
     expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-acme' }).map((entry) => entry.id)).toEqual(['time-3', 'time-4']);
     expect(filterTimeEntriesForReport(initialData, { period: 'all', projectId: 'proj-brand', colleagueId: 'col-sara' }).map((entry) => entry.id)).toEqual(['time-2']);
     expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-northstar', projectId: 'proj-erp' })).toHaveLength(0);
+  });
+
+  it('summarizes report scope by customer value', () => {
+    const rollups = customerReportRollups(initialData, filterTimeEntriesForReport(initialData, { period: 'all' }));
+
+    expect(rollups.map((rollup) => rollup.customer.id)).toEqual(['cust-northstar', 'cust-acme']);
+    expect(rollups[0]).toMatchObject({ hours: 5.5, billableHours: 5.5, internalHours: 0, projectCount: 1, revenue: 660 });
+    expect(rollups[1]).toMatchObject({ hours: 5.5, billableHours: 4, internalHours: 1.5, projectCount: 1, revenue: 440 });
   });
 
   it('formats agency budgets as EUR', () => {

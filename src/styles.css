@@ -54,3 +54,4 @@ html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}body{overflow-x:hidden
 
 /* Report scope filters */
 .reportFilterGrid{grid-template-columns:repeat(4,minmax(150px,1fr));align-items:end;min-width:min(760px,100%)}.reportFilterGrid label{display:grid;gap:7px}.reportFilterGrid span{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:#738076}@media (max-width:1050px){.reportFilterGrid{grid-template-columns:repeat(2,minmax(0,1fr));min-width:0}}@media (max-width:620px){.reportFilterGrid{grid-template-columns:1fr}}
+.customerRollupList{display:grid;gap:8px;margin:10px 0 12px}.customerRollup{padding:12px;border-radius:16px;background:#f8f6ef;border:1px solid rgba(23,32,27,.06)}.customerRollup strong,.customerRollup span,.customerRollup small{display:block}.customerRollup span{margin-top:4px;color:#17201b;font-weight:800}.customerRollup small{margin-top:3px;color:#66736b}

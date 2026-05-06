@@ -297,6 +297,25 @@ export function filterTimeEntriesForReport(data: AppData, filters: ReportFilters
   });
 }
 
+export function customerReportRollups(data: AppData, entries: TimeEntry[]) {
+  return data.customers
+    .map((customer) => {
+      const projectIds = new Set(data.projects.filter((project) => project.customerId === customer.id).map((project) => project.id));
+      const customerEntries = entries.filter((entry) => projectIds.has(entry.projectId));
+      const projectCount = new Set(customerEntries.map((entry) => entry.projectId)).size;
+      const hours = customerEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const billableHours = customerEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+      const revenue = customerEntries.reduce((sum, entry) => {
+        const project = data.projects.find((item) => item.id === entry.projectId);
+        return sum + (entry.billable ? entry.hours * (project?.hourlyRate ?? 0) : 0);
+      }, 0);
+
+      return { customer, projectCount, hours, billableHours, internalHours: hours - billableHours, revenue };
+    })
+    .filter((rollup) => rollup.hours > 0)
+    .sort((left, right) => right.revenue - left.revenue || right.hours - left.hours);
+}
+
 export function moveTicketOnBoard(data: AppData, ticketId: string, status: TicketStatus, beforeTicketId?: string): AppData {
   const movedTicket = data.tickets.find((ticket) => ticket.id === ticketId);
   if (!movedTicket) return data;
