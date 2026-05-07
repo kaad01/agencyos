@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -177,6 +177,21 @@ describe('AgencyOS operations metrics', () => {
 
     expect(weeklyTimesheetCapacity(overloaded, { weekDate: '2026-05-06' })[0]).toMatchObject({ person: initialData.colleagues[0], usagePercent: 120, status: 'Over capacity' });
     expect(weeklyTimesheetCapacity(initialData, { weekDate: '2026-05-06', colleagueId: 'col-sara' }).map((signal) => signal.person.id)).toEqual(['col-sara']);
+  });
+
+
+  it('creates a safe manual time draft from an unlogged ticket', () => {
+    expect(timeEntryDraftForTicket(initialData, 'tic-interviews', '2026-05-06')).toEqual({
+      projectId: 'proj-market',
+      ticketId: 'tic-interviews',
+      colleagueId: 'col-sara',
+      date: '2026-05-06',
+      hours: 0.25,
+      billable: true,
+      note: 'Quick log: Draft interview guide',
+    });
+
+    expect(timeEntryDraftForTicket(initialData, 'missing-ticket', '2026-05-06')).toBeNull();
   });
 
   it('filters weekly timesheet time by week, project, and person', () => {
