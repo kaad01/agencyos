@@ -448,6 +448,45 @@ export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
 }
 
 
+
+export type WeeklyReviewQueueIssue = 'Missing ticket' | 'Missing note' | 'Confirm internal';
+
+export type WeeklyReviewQueueItem = {
+  entry: TimeEntry;
+  issue: WeeklyReviewQueueIssue;
+  project: Project | null;
+  colleague: Colleague | null;
+  ticket: Ticket | null;
+  action: string;
+};
+
+export function weeklyTimesheetReviewQueue(data: AppData, filters: TimesheetFilters): WeeklyReviewQueueItem[] {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const issuePriority: Record<WeeklyReviewQueueIssue, number> = { 'Missing ticket': 0, 'Missing note': 1, 'Confirm internal': 2 };
+
+  return scopedEntries
+    .flatMap((entry) => {
+      const project = data.projects.find((item) => item.id === entry.projectId) ?? null;
+      const colleague = data.colleagues.find((person) => person.id === entry.colleagueId) ?? null;
+      const ticket = entry.ticketId ? data.tickets.find((item) => item.id === entry.ticketId) ?? null : null;
+      const base = { entry, project, colleague, ticket };
+      const items: WeeklyReviewQueueItem[] = [];
+
+      if (!entry.ticketId) {
+        items.push({ ...base, issue: 'Missing ticket', action: 'Attach a delivery ticket before client reporting.' });
+      }
+      if (!entry.note.trim()) {
+        items.push({ ...base, issue: 'Missing note', action: 'Add a short work note for invoice context.' });
+      }
+      if (!entry.billable) {
+        items.push({ ...base, issue: 'Confirm internal', action: 'Confirm this should stay internal/non-billable.' });
+      }
+
+      return items;
+    })
+    .sort((left, right) => issuePriority[left.issue] - issuePriority[right.issue] || left.entry.date.localeCompare(right.entry.date) || left.entry.id.localeCompare(right.entry.id));
+}
+
 export function weeklyTimesheetReview(data: AppData, filters: TimesheetFilters) {
   const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
   const totalHours = scopedEntries.reduce((sum, entry) => sum + entry.hours, 0);

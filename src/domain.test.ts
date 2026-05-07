@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -193,6 +193,32 @@ describe('AgencyOS operations metrics', () => {
   });
 
 
+
+
+  it('builds a weekly review queue for entries that need cleanup', () => {
+    const data = {
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-missing-ticket', projectId: 'proj-brand', ticketId: '', colleagueId: 'col-mina', date: '2026-05-06', hours: 1, billable: true, note: 'Client workshop' },
+        { id: 'time-missing-note', projectId: 'proj-brand', ticketId: 'tic-brief', colleagueId: 'col-mina', date: '2026-05-06', hours: 0.5, billable: true, note: '   ' },
+      ],
+    };
+
+    const queue = weeklyTimesheetReviewQueue(data, { weekDate: '2026-05-06' });
+
+    expect(queue.map((item) => [item.entry.id, item.issue])).toEqual([
+      ['time-missing-ticket', 'Missing ticket'],
+      ['time-missing-note', 'Missing note'],
+      ['time-4', 'Confirm internal'],
+    ]);
+    expect(queue[0]).toMatchObject({
+      project: { id: 'proj-brand' },
+      colleague: { id: 'col-mina' },
+      action: 'Attach a delivery ticket before client reporting.',
+    });
+    expect(weeklyTimesheetReviewQueue(initialData, { weekDate: '2026-05-13' })).toEqual([]);
+  });
 
   it('audits weekly timesheets for export cleanup signals', () => {
     const audit = weeklyTimesheetAudit(initialData, { weekDate: '2026-05-06' });
