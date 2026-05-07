@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -121,6 +121,17 @@ describe('AgencyOS operations metrics', () => {
     expect(mina?.total).toBe(3.5);
     expect(mina?.billable).toBe(3.5);
     expect(leo?.internal).toBe(1.5);
+  });
+
+
+  it('groups weekly timesheet time by project for delivery review', () => {
+    const rows = weeklyTimesheetByProject(initialData, '2026-05-06');
+
+    expect(rows.map((row) => row.project.id)).toEqual(['proj-brand', 'proj-erp']);
+    expect(rows[0]).toMatchObject({ total: 5.5, billable: 5.5, internal: 0 });
+    expect(rows[0].dailyHours).toEqual([0, 5.5, 0, 0, 0, 0, 0]);
+    expect(rows[1]).toMatchObject({ total: 5.5, billable: 4, internal: 1.5 });
+    expect(weeklyTimesheetByProject(initialData, '2026-05-13')).toEqual([]);
   });
 
   it('drops tickets at the end of the target status when no card target is provided', () => {

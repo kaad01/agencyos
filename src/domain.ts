@@ -291,6 +291,25 @@ export function weeklyTimesheetByColleague(data: AppData, date: string) {
   });
 }
 
+
+export function weeklyTimesheetByProject(data: AppData, date: string) {
+  const weekEntries = timeEntriesForWeek(data, date);
+  return data.projects
+    .map((project) => {
+      const projectEntries = weekEntries.filter((entry) => entry.projectId === project.id);
+      const total = projectEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const billable = projectEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+      const dailyHours = Array.from({ length: 7 }, (_, index) => {
+        const day = addDays(weekStartDate(date), index);
+        return projectEntries.filter((entry) => entry.date === day).reduce((sum, entry) => sum + entry.hours, 0);
+      });
+
+      return { project, dailyHours, total, billable, internal: total - billable };
+    })
+    .filter((row) => row.total > 0)
+    .sort((left, right) => right.total - left.total || left.project.name.localeCompare(right.project.name));
+}
+
 export type TimesheetFilters = {
   weekDate: string;
   projectId?: string;
