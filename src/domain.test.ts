@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -155,6 +155,28 @@ describe('AgencyOS operations metrics', () => {
       totalHours: 0,
       unloggedTicketCount: 2,
     });
+  });
+
+
+  it('turns weekly time into capacity signals for timesheet review', () => {
+    expect(weeklyCapacityTargetHours(initialData.colleagues[0])).toBe(32.8);
+
+    const signals = weeklyTimesheetCapacity(initialData, { weekDate: '2026-05-06' });
+
+    expect(signals.map((signal) => signal.person.id)).toEqual(['col-mina', 'col-jonas', 'col-sara', 'col-leo']);
+    expect(signals[0]).toMatchObject({ loggedHours: 3.5, billableHours: 3.5, internalHours: 0, targetHours: 32.8, usagePercent: 11, status: 'Light' });
+    expect(signals.find((signal) => signal.person.id === 'col-leo')).toMatchObject({ loggedHours: 1.5, billableHours: 0, internalHours: 1.5 });
+
+    const overloaded = {
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-capacity-spike', projectId: 'proj-brand', ticketId: 'tic-brief', colleagueId: 'col-mina', date: '2026-05-06', hours: 36, billable: true, note: 'Launch crunch' },
+      ],
+    };
+
+    expect(weeklyTimesheetCapacity(overloaded, { weekDate: '2026-05-06' })[0]).toMatchObject({ person: initialData.colleagues[0], usagePercent: 120, status: 'Over capacity' });
+    expect(weeklyTimesheetCapacity(initialData, { weekDate: '2026-05-06', colleagueId: 'col-sara' }).map((signal) => signal.person.id)).toEqual(['col-sara']);
   });
 
   it('filters weekly timesheet time by week, project, and person', () => {
