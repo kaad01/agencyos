@@ -353,6 +353,43 @@ export function weeklyTimesheetReview(data: AppData, filters: TimesheetFilters) 
   };
 }
 
+
+export type WeeklyCapacityStatus = 'Over capacity' | 'Healthy' | 'Light';
+
+export function weeklyCapacityTargetHours(colleague: Colleague) {
+  return Math.round((Math.max(0, colleague.capacity) / 100) * 40 * 10) / 10;
+}
+
+export function weeklyTimesheetCapacity(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const activeAssigneeIds = new Set(data.tickets
+    .filter((ticket) => {
+      if (ticket.status === 'Done') return false;
+      if (filters.projectId && ticket.projectId !== filters.projectId) return false;
+      if (filters.colleagueId && ticket.assigneeId !== filters.colleagueId) return false;
+      return true;
+    })
+    .map((ticket) => ticket.assigneeId));
+  const contributorIds = new Set(scopedEntries.map((entry) => entry.colleagueId));
+
+  return data.colleagues
+    .filter((person) => {
+      if (filters.colleagueId && person.id !== filters.colleagueId) return false;
+      return activeAssigneeIds.has(person.id) || contributorIds.has(person.id);
+    })
+    .map((person) => {
+      const personEntries = scopedEntries.filter((entry) => entry.colleagueId === person.id);
+      const loggedHours = personEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const billableHours = personEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+      const targetHours = weeklyCapacityTargetHours(person);
+      const usagePercent = targetHours > 0 ? Math.round((loggedHours / targetHours) * 100) : 0;
+      const status: WeeklyCapacityStatus = usagePercent > 100 ? 'Over capacity' : usagePercent >= 60 ? 'Healthy' : 'Light';
+
+      return { person, loggedHours, billableHours, internalHours: loggedHours - billableHours, targetHours, usagePercent, status };
+    })
+    .sort((left, right) => right.usagePercent - left.usagePercent || right.loggedHours - left.loggedHours || left.person.name.localeCompare(right.person.name));
+}
+
 export type ReportFilters = {
   period: ReportPeriod;
   customerId?: string;
