@@ -67,6 +67,25 @@ export type AppData = {
   timeEntries: TimeEntry[];
 };
 
+export type TimeEntryDraft = Omit<TimeEntry, 'id'>;
+
+export function timeEntryDraftForTicket(data: AppData, ticketId: string, date: string, hours = 0.25): TimeEntryDraft | null {
+  const ticket = data.tickets.find((item) => item.id === ticketId);
+  if (!ticket) return null;
+  const project = data.projects.find((item) => item.id === ticket.projectId);
+  if (!project) return null;
+
+  return {
+    projectId: project.id,
+    ticketId: ticket.id,
+    colleagueId: ticket.assigneeId || project.leadId || data.colleagues[0]?.id || '',
+    date,
+    hours,
+    billable: true,
+    note: `Quick log: ${ticket.title}`,
+  };
+}
+
 export const ticketStatuses: TicketStatus[] = ['Backlog', 'Todo', 'In progress', 'Review', 'Done'];
 export const projectStatuses: ProjectStatus[] = ['Planning', 'Active', 'At risk', 'Done'];
 export const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
