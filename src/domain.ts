@@ -273,6 +273,26 @@ export function filterTimeEntriesForTimesheet(data: AppData, filters: TimesheetF
   });
 }
 
+
+export function weeklyUnloggedTickets(data: AppData, filters: TimesheetFilters) {
+  const start = weekStartDate(filters.weekDate);
+  const end = addDays(start, 6);
+
+  return data.tickets
+    .filter((ticket) => {
+      if (ticket.status === 'Done') return false;
+      if (filters.projectId && ticket.projectId !== filters.projectId) return false;
+      if (filters.colleagueId && ticket.assigneeId !== filters.colleagueId) return false;
+
+      const hasWeeklyTime = data.timeEntries.some((entry) => entry.ticketId === ticket.id && entry.date >= start && entry.date <= end);
+      return !hasWeeklyTime;
+    })
+    .sort((left, right) => {
+      const priorityOrder: Record<TicketPriority, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+      return priorityOrder[left.priority] - priorityOrder[right.priority] || left.dueDate.localeCompare(right.dueDate);
+    });
+}
+
 export type ReportFilters = {
   period: ReportPeriod;
   customerId?: string;
