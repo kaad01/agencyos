@@ -349,6 +349,27 @@ export function weeklyUnloggedTickets(data: AppData, filters: TimesheetFilters) 
 }
 
 
+export function weeklyTimeCaptureFocus(data: AppData, filters: TimesheetFilters) {
+  const unloggedTickets = weeklyUnloggedTickets(data, filters);
+  const weekStart = weekStartDate(filters.weekDate);
+  const weekEnd = addDays(weekStart, 6);
+  const dueThisWeek = unloggedTickets.filter((ticket) => ticket.dueDate >= weekStart && ticket.dueDate <= weekEnd);
+  const priorityTickets = unloggedTickets.filter((ticket) => ticket.priority === 'Urgent' || ticket.priority === 'High');
+  const missingEstimateHours = unloggedTickets.reduce((sum, ticket) => sum + Math.max(0, ticket.estimateHours - ticketLoggedHours(data, ticket.id)), 0);
+  const topTicket = priorityTickets[0] ?? dueThisWeek[0] ?? unloggedTickets[0];
+
+  return {
+    totalUnloggedTickets: unloggedTickets.length,
+    priorityCount: priorityTickets.length,
+    dueThisWeekCount: dueThisWeek.length,
+    missingEstimateHours,
+    topTicket,
+    weekStart,
+    weekEnd,
+  };
+}
+
+
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
 
 
