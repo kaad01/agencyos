@@ -216,6 +216,23 @@ export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }
 
+export function ticketEstimateUsedPercent(data: AppData, ticketId: string) {
+  const ticket = data.tickets.find((item) => item.id === ticketId);
+  if (!ticket || ticket.estimateHours <= 0) return 0;
+  return Math.round((ticketLoggedHours(data, ticketId) / ticket.estimateHours) * 100);
+}
+
+export function ticketDeliverySignal(data: AppData, ticketId: string) {
+  const ticket = data.tickets.find((item) => item.id === ticketId);
+  if (!ticket) return 'No estimate';
+  const used = ticketEstimateUsedPercent(data, ticketId);
+  if (ticket.estimateHours <= 0) return 'No estimate';
+  if (used >= 100 && ticket.status !== 'Done') return 'Over estimate';
+  if (used >= 75) return 'Watch scope';
+  if (used === 0) return 'No time yet';
+  return 'On track';
+}
+
 export function roundedTimerHours(startedAt: string, now = Date.now()) {
   const elapsedHours = Math.max(0, (now - new Date(startedAt).getTime()) / 36e5);
   return Math.max(0.25, Math.round(elapsedHours * 4) / 4);

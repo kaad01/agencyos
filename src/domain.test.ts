@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -21,6 +21,9 @@ describe('AgencyOS operations metrics', () => {
     expect(projectRevenue(initialData, 'proj-brand')).toBe(660);
     expect(projectBudgetUsedPercent(initialData, 'proj-brand')).toBe(2);
     expect(ticketLoggedHours(initialData, 'tic-scope')).toBe(5.5);
+    expect(ticketEstimateUsedPercent(initialData, 'tic-scope')).toBe(92);
+    expect(ticketDeliverySignal(initialData, 'tic-scope')).toBe('Watch scope');
+    expect(ticketDeliverySignal(initialData, 'tic-interviews')).toBe('No time yet');
   });
 
   it('calculates profitability-lite reporting signals', () => {
