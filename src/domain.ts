@@ -332,6 +332,32 @@ export function weeklyUnloggedTickets(data: AppData, filters: TimesheetFilters) 
 
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
 
+
+export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const missingTicketEntries = scopedEntries.filter((entry) => !entry.ticketId);
+  const missingNoteEntries = scopedEntries.filter((entry) => !entry.note.trim());
+  const internalEntries = scopedEntries.filter((entry) => !entry.billable);
+  const projectIds = new Set(scopedEntries.map((entry) => entry.projectId));
+  const colleagueIds = new Set(scopedEntries.map((entry) => entry.colleagueId));
+  const totalHours = scopedEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableHours = scopedEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+
+  return {
+    entryCount: scopedEntries.length,
+    projectCount: projectIds.size,
+    contributorCount: colleagueIds.size,
+    totalHours,
+    billableHours,
+    internalHours: totalHours - billableHours,
+    missingTicketCount: missingTicketEntries.length,
+    missingNoteCount: missingNoteEntries.length,
+    internalEntryCount: internalEntries.length,
+    readyForExport: scopedEntries.length > 0 && missingTicketEntries.length === 0 && missingNoteEntries.length === 0,
+  };
+}
+
+
 export function weeklyTimesheetReview(data: AppData, filters: TimesheetFilters) {
   const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
   const totalHours = scopedEntries.reduce((sum, entry) => sum + entry.hours, 0);

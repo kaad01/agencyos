@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -157,6 +157,36 @@ describe('AgencyOS operations metrics', () => {
     });
   });
 
+
+
+  it('audits weekly timesheets for export cleanup signals', () => {
+    const audit = weeklyTimesheetAudit(initialData, { weekDate: '2026-05-06' });
+
+    expect(audit).toMatchObject({
+      entryCount: 4,
+      projectCount: 2,
+      contributorCount: 4,
+      totalHours: 11,
+      billableHours: 9.5,
+      internalHours: 1.5,
+      missingTicketCount: 0,
+      missingNoteCount: 0,
+      internalEntryCount: 1,
+      readyForExport: true,
+    });
+
+    expect(weeklyTimesheetAudit({
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-needs-cleanup', projectId: 'proj-brand', ticketId: '', colleagueId: 'col-mina', date: '2026-05-06', hours: 1, billable: true, note: '' },
+      ],
+    }, { weekDate: '2026-05-06' })).toMatchObject({
+      missingTicketCount: 1,
+      missingNoteCount: 1,
+      readyForExport: false,
+    });
+  });
 
   it('turns weekly time into capacity signals for timesheet review', () => {
     expect(weeklyCapacityTargetHours(initialData.colleagues[0])).toBe(32.8);
