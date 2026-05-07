@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -132,6 +132,16 @@ describe('AgencyOS operations metrics', () => {
     expect(rows[0].dailyHours).toEqual([0, 5.5, 0, 0, 0, 0, 0]);
     expect(rows[1]).toMatchObject({ total: 5.5, billable: 4, internal: 1.5 });
     expect(weeklyTimesheetByProject(initialData, '2026-05-13')).toEqual([]);
+  });
+
+  it('groups weekly timesheet time by customer for client review', () => {
+    const rows = weeklyTimesheetByCustomer(initialData, '2026-05-06');
+
+    expect(rows.map((row) => row.customer.id)).toEqual(['cust-acme', 'cust-northstar']);
+    expect(rows[0]).toMatchObject({ total: 5.5, billable: 4, internal: 1.5, earnedRevenue: 440, projectCount: 1 });
+    expect(rows[0].dailyHours).toEqual([1.5, 4, 0, 0, 0, 0, 0]);
+    expect(rows[1]).toMatchObject({ total: 5.5, billable: 5.5, internal: 0, earnedRevenue: 660, projectCount: 1 });
+    expect(weeklyTimesheetByCustomer(initialData, '2026-05-13')).toEqual([]);
   });
 
   it('drops tickets at the end of the target status when no card target is provided', () => {
