@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -97,6 +97,12 @@ describe('AgencyOS operations metrics', () => {
     expect(moved.tickets.map((ticket) => ticket.id).slice(0, 2)).toEqual(['tic-assets', 'tic-brief']);
     expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.status).toBe('In progress');
     expect(moved.tickets.find((ticket) => ticket.id === 'tic-assets')?.assigneeId).toBe('col-sara');
+  });
+
+  it('rounds running timers into safe quarter-hour entries', () => {
+    expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T10:04:00.000Z'))).toBe(0.25);
+    expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T10:37:00.000Z'))).toBe(0.5);
+    expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T11:53:00.000Z'))).toBe(2);
   });
 
   it('groups time entries into weekly colleague timesheets', () => {

@@ -216,6 +216,11 @@ export function ticketLoggedHours(data: AppData, ticketId: string) {
   return data.timeEntries.filter((entry) => entry.ticketId === ticketId).reduce((sum, entry) => sum + entry.hours, 0);
 }
 
+export function roundedTimerHours(startedAt: string, now = Date.now()) {
+  const elapsedHours = Math.max(0, (now - new Date(startedAt).getTime()) / 36e5);
+  return Math.max(0.25, Math.round(elapsedHours * 4) / 4);
+}
+
 export function weekStartDate(date: string) {
   const current = new Date(`${date}T00:00:00.000Z`);
   const day = current.getUTCDay() || 7;

@@ -1,6 +1,6 @@
 import { type DragEvent, useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, CheckCircle2, CircleDollarSign, Clock3, Download, FolderKanban, Handshake, HeartPulse, LayoutDashboard, Lightbulb, Plus, Search, Sparkles, TicketCheck, TimerReset, UsersRound, X } from 'lucide-react';
-import { addDays, byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerReportRollups, customerRevenue, customerTickets, formatCurrency, initialData, makeId, moveTicketOnBoard, priorities, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectEstimateUsedPercent, projectEstimatedHours, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, projectDeliverySignal, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, projectStatuses, ticketLoggedHours, ticketStatuses, weekStartDate, weeklyTimesheetByColleague, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type ReportPeriod, type TimeEntry } from './domain';
+import { addDays, byId, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerProjects, customerReportRollups, customerRevenue, customerTickets, formatCurrency, initialData, makeId, moveTicketOnBoard, priorities, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectEffectiveRate, projectEstimateUsedPercent, projectEstimatedHours, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, projectDeliverySignal, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, projectStatuses, roundedTimerHours, ticketLoggedHours, ticketStatuses, weekStartDate, weeklyTimesheetByColleague, type AppData, type Colleague, type Customer, type CustomerHealth, type Project, type ProjectStatus, type Ticket, type TicketPriority, type TicketStatus, type ReportPeriod, type TimeEntry } from './domain';
 
 type View = 'Dashboard' | 'Projects' | 'Tickets' | 'Time' | 'Reports' | 'Customers' | 'Team';
 type Modal = 'project' | 'ticket' | 'time' | 'customer' | 'colleague' | null;
@@ -43,11 +43,6 @@ function todayPlus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function timerDurationHours(startedAt: string, now = Date.now()) {
-  const elapsedHours = Math.max(0, (now - new Date(startedAt).getTime()) / 36e5);
-  return Math.max(0.25, Math.round(elapsedHours * 4) / 4);
 }
 
 function elapsedTimerLabel(startedAt: string, now = Date.now()) {
@@ -151,7 +146,7 @@ export function App() {
       ticketId: activeTimer.ticketId,
       colleagueId: activeTimer.colleagueId,
       date: todayPlus(0),
-      hours: timerDurationHours(activeTimer.startedAt),
+      hours: roundedTimerHours(activeTimer.startedAt),
       billable: activeTimer.billable,
       note: activeTimer.note,
     };
@@ -364,7 +359,15 @@ function TimeView({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelT
 }
 
 function ActiveTimerBar({ data, activeTimer, now, onStop, onCancel }: { data: AppData; activeTimer: ActiveTimer; now: number; onStop: () => void; onCancel: () => void }) {
-  return <section className="activeTimerBar" aria-live="polite"><div><p className="eyebrow">Running timer</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · {projectName(data, activeTimer.projectId)}</strong><span>{ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span></div><div><button onClick={onStop}><CheckCircle2 size={16}/>Stop and save</button><button className="ghost" onClick={onCancel}>Discard</button></div></section>;
+  return <section className="activeTimerBar" aria-live="polite"><div><p className="eyebrow">Running timer</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · {projectName(data, activeTimer.projectId)}</strong><span>{ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span><TimerSavePreview data={data} activeTimer={activeTimer} now={now} compact /></div><div><button onClick={onStop}><CheckCircle2 size={16}/>Stop and save</button><button className="ghost" onClick={onCancel}>Discard</button></div></section>;
+}
+
+function TimerSavePreview({ data, activeTimer, now, compact = false }: { data: AppData; activeTimer: ActiveTimer; now: number; compact?: boolean }) {
+  const roundedHours = roundedTimerHours(activeTimer.startedAt, now);
+  const project = byId(data.projects, activeTimer.projectId);
+  const projectedRevenue = activeTimer.billable ? roundedHours * (project?.hourlyRate ?? 0) : 0;
+
+  return <div className={compact ? 'timerSavePreview compact' : 'timerSavePreview'}><span><strong>{roundedHours}h</strong><small>will be saved</small></span><span><strong>{activeTimer.billable ? formatCurrency(projectedRevenue) : 'Internal'}</strong><small>{activeTimer.billable ? 'projected revenue' : 'non-billable work'}</small></span><span><strong>{colleagueName(data, activeTimer.colleagueId)}</strong><small>{activeTimer.note}</small></span></div>;
 }
 
 function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCancelTimer }: { data: AppData; activeTimer: ActiveTimer | null; now: number; onStartTimer: (projectId: string, ticketId?: string, options?: TimerStartOptions) => void; onStopTimer: () => void; onCancelTimer: () => void }) {
@@ -376,7 +379,7 @@ function TimerControl({ data, activeTimer, now, onStartTimer, onStopTimer, onCan
   const projectTickets = data.tickets.filter((ticket) => ticket.projectId === projectId);
   const selectedTicketId = projectTickets.some((ticket) => ticket.id === ticketId) ? ticketId : '';
   const defaultNote = selectedTicketId ? `Timer: ${ticketTitle(data, selectedTicketId)}` : `Timer: ${projectName(data, projectId)}`;
-  if (activeTimer) return <section className="timerControl running"><TimerReset size={20}/><div><p className="eyebrow">Timer running</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · rounds to {timerDurationHours(activeTimer.startedAt, now)}h</strong><span>{projectName(data, activeTimer.projectId)} · {ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span></div><button onClick={onStopTimer}>Stop and save</button><button className="ghost" onClick={onCancelTimer}>Discard</button></section>;
+  if (activeTimer) return <section className="timerControl running"><TimerReset size={20}/><div><p className="eyebrow">Timer running</p><strong>{elapsedTimerLabel(activeTimer.startedAt, now)} · rounds to {roundedTimerHours(activeTimer.startedAt, now)}h</strong><span>{projectName(data, activeTimer.projectId)} · {ticketTitle(data, activeTimer.ticketId)} · {colleagueName(data, activeTimer.colleagueId)} · {activeTimer.billable ? 'Billable' : 'Internal'}</span><TimerSavePreview data={data} activeTimer={activeTimer} now={now} /></div><button onClick={onStopTimer}>Stop and save</button><button className="ghost" onClick={onCancelTimer}>Discard</button></section>;
   return <section className="timerControl"><TimerReset size={20}/><div><p className="eyebrow">Start/stop timer</p><strong>Track live work before it becomes a timesheet entry.</strong><span>Choose project, ticket, person, billable status, and note before the timer starts.</span></div><label>Project<select value={projectId} onChange={(event) => { const nextProjectId = event.target.value; setProjectId(nextProjectId); setTicketId(''); setColleagueId(byId(data.projects, nextProjectId)?.leadId ?? data.colleagues[0]?.id ?? ''); }}>{data.projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label><label>Ticket<select value={selectedTicketId} onChange={(event) => { const nextTicketId = event.target.value; setTicketId(nextTicketId); const ticket = byId(data.tickets, nextTicketId); if (ticket?.assigneeId) setColleagueId(ticket.assigneeId); }}><option value="">No ticket</option>{projectTickets.map((ticket) => <option value={ticket.id} key={ticket.id}>{ticket.title}</option>)}</select></label><label>Person<select value={colleagueId} onChange={(event) => setColleagueId(event.target.value)}>{data.colleagues.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select></label><label>Note<input value={note} placeholder={defaultNote} onChange={(event) => setNote(event.target.value)} /></label><label className="timerBillable"><input type="checkbox" checked={billable} onChange={(event) => setBillable(event.target.checked)} />Billable</label><button disabled={!projectId || !colleagueId} onClick={() => onStartTimer(projectId, selectedTicketId, { colleagueId, billable, note: note || defaultNote })}><Clock3 size={16}/>Start timer</button></section>;
 }
 function ReportsView({ data, metrics, onExport, onLogTime }: { data: AppData; metrics: ReturnType<typeof calculateMetrics>; onExport: (entries?: TimeEntry[]) => void; onLogTime: () => void }) {
