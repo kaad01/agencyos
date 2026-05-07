@@ -449,6 +449,31 @@ export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
 
 
 
+export function weeklyTimesheetValueSummary(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const projectRates = new Map(data.projects.map((project) => [project.id, project.hourlyRate]));
+  const totalHours = scopedEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableHours = scopedEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+  const internalHours = totalHours - billableHours;
+  const earnedRevenue = scopedEntries
+    .filter((entry) => entry.billable)
+    .reduce((sum, entry) => sum + entry.hours * (projectRates.get(entry.projectId) ?? 0), 0);
+  const nonBillableValue = scopedEntries
+    .filter((entry) => !entry.billable)
+    .reduce((sum, entry) => sum + entry.hours * (projectRates.get(entry.projectId) ?? 0), 0);
+
+  return {
+    totalHours,
+    billableHours,
+    internalHours,
+    billableRatio: totalHours ? Math.round((billableHours / totalHours) * 100) : 0,
+    earnedRevenue,
+    nonBillableValue,
+    effectiveRate: totalHours ? Math.round(earnedRevenue / totalHours) : 0,
+    billableRate: billableHours ? Math.round(earnedRevenue / billableHours) : 0,
+  };
+}
+
 export type WeeklyReviewQueueIssue = 'Missing ticket' | 'Missing note' | 'Confirm internal';
 
 export type WeeklyReviewQueueItem = {
