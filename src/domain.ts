@@ -86,6 +86,24 @@ export function timeEntryDraftForTicket(data: AppData, ticketId: string, date: s
   };
 }
 
+export function timeEntryDraftForTimesheetScope(data: AppData, filters: TimesheetFilters, hours = 1): TimeEntryDraft | null {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const projectId = filters.projectId || scopedEntries[0]?.projectId || data.projects[0]?.id || '';
+  const project = data.projects.find((item) => item.id === projectId);
+  if (!project) return null;
+  const colleagueId = filters.colleagueId || scopedEntries[0]?.colleagueId || project.leadId || data.colleagues[0]?.id || '';
+
+  return {
+    projectId: project.id,
+    ticketId: '',
+    colleagueId,
+    date: filters.weekDate,
+    hours,
+    billable: true,
+    note: `Manual log for week of ${weekStartDate(filters.weekDate)}`,
+  };
+}
+
 export const ticketStatuses: TicketStatus[] = ['Backlog', 'Todo', 'In progress', 'Review', 'Done'];
 export const projectStatuses: ProjectStatus[] = ['Planning', 'Active', 'At risk', 'Done'];
 export const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
