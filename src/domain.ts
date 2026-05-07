@@ -310,6 +310,38 @@ export function weeklyTimesheetByProject(data: AppData, date: string) {
     .sort((left, right) => right.total - left.total || left.project.name.localeCompare(right.project.name));
 }
 
+export function weeklyTimesheetByCustomer(data: AppData, date: string) {
+  const weekEntries = timeEntriesForWeek(data, date);
+
+  return data.customers
+    .map((customer) => {
+      const customerProjectIds = new Set(data.projects.filter((project) => project.customerId === customer.id).map((project) => project.id));
+      const projectRates = new Map(data.projects.map((project) => [project.id, project.hourlyRate]));
+      const customerEntries = weekEntries.filter((entry) => customerProjectIds.has(entry.projectId));
+      const total = customerEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      const billable = customerEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+      const earnedRevenue = customerEntries
+        .filter((entry) => entry.billable)
+        .reduce((sum, entry) => sum + entry.hours * (projectRates.get(entry.projectId) ?? 0), 0);
+      const dailyHours = Array.from({ length: 7 }, (_, index) => {
+        const day = addDays(weekStartDate(date), index);
+        return customerEntries.filter((entry) => entry.date === day).reduce((sum, entry) => sum + entry.hours, 0);
+      });
+
+      return {
+        customer,
+        dailyHours,
+        total,
+        billable,
+        internal: total - billable,
+        earnedRevenue,
+        projectCount: new Set(customerEntries.map((entry) => entry.projectId)).size,
+      };
+    })
+    .filter((row) => row.total > 0)
+    .sort((left, right) => right.total - left.total || left.customer.name.localeCompare(right.customer.name));
+}
+
 export type TimesheetFilters = {
   weekDate: string;
   projectId?: string;
