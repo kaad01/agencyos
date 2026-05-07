@@ -310,6 +310,49 @@ export function weeklyUnloggedTickets(data: AppData, filters: TimesheetFilters) 
     });
 }
 
+
+export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
+
+export function weeklyTimesheetReview(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const totalHours = scopedEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableHours = scopedEntries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+  const internalHours = totalHours - billableHours;
+  const billableRatio = totalHours ? Math.round((billableHours / totalHours) * 100) : 0;
+  const activeTickets = data.tickets.filter((ticket) => {
+    if (ticket.status === 'Done') return false;
+    if (filters.projectId && ticket.projectId !== filters.projectId) return false;
+    if (filters.colleagueId && ticket.assigneeId !== filters.colleagueId) return false;
+    return true;
+  });
+  const expectedAssigneeIds = Array.from(new Set(activeTickets.map((ticket) => ticket.assigneeId).filter(Boolean)));
+  const contributorIds = new Set(scopedEntries.map((entry) => entry.colleagueId));
+  const coveredAssigneeCount = expectedAssigneeIds.filter((id) => contributorIds.has(id)).length;
+  const missingAssignees = expectedAssigneeIds
+    .filter((id) => !contributorIds.has(id))
+    .map((id) => data.colleagues.find((person) => person.id === id))
+    .filter((person): person is Colleague => Boolean(person));
+  const unloggedTicketCount = weeklyUnloggedTickets(data, filters).length;
+  const status: TimesheetReviewStatus = totalHours === 0
+    ? 'No time logged'
+    : unloggedTicketCount > 0 || missingAssignees.length > 0
+      ? 'Needs time capture'
+      : 'Ready to review';
+
+  return {
+    totalHours,
+    billableHours,
+    internalHours,
+    billableRatio,
+    contributorCount: contributorIds.size,
+    coveredAssigneeCount,
+    expectedAssigneeCount: expectedAssigneeIds.length,
+    missingAssignees,
+    unloggedTicketCount,
+    status,
+  };
+}
+
 export type ReportFilters = {
   period: ReportPeriod;
   customerId?: string;

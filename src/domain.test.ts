@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, weekStartDate, weeklyTimesheetByColleague, weeklyTimesheetReview, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -134,6 +134,27 @@ describe('AgencyOS operations metrics', () => {
     expect(weeklyUnloggedTickets(initialData, { weekDate: '2026-05-06' }).map((ticket) => ticket.id)).toEqual(['tic-interviews']);
     expect(weeklyUnloggedTickets(initialData, { weekDate: '2026-05-13', projectId: 'proj-brand' }).map((ticket) => ticket.id)).toEqual(['tic-brief', 'tic-assets']);
     expect(weeklyUnloggedTickets(initialData, { weekDate: '2026-05-13', colleagueId: 'col-sara' }).map((ticket) => ticket.id)).toEqual(['tic-assets', 'tic-interviews']);
+  });
+
+  it('summarizes weekly timesheet readiness before review', () => {
+    const review = weeklyTimesheetReview(initialData, { weekDate: '2026-05-06' });
+
+    expect(review.status).toBe('Needs time capture');
+    expect(review.totalHours).toBe(11);
+    expect(review.billableHours).toBe(9.5);
+    expect(review.internalHours).toBe(1.5);
+    expect(review.billableRatio).toBe(86);
+    expect(review.contributorCount).toBe(4);
+    expect(review.coveredAssigneeCount).toBe(3);
+    expect(review.expectedAssigneeCount).toBe(3);
+    expect(review.unloggedTicketCount).toBe(1);
+    expect(review.missingAssignees.map((person) => person.id)).toEqual([]);
+
+    expect(weeklyTimesheetReview(initialData, { weekDate: '2026-05-13', projectId: 'proj-brand' })).toMatchObject({
+      status: 'No time logged',
+      totalHours: 0,
+      unloggedTicketCount: 2,
+    });
   });
 
   it('filters weekly timesheet time by week, project, and person', () => {
