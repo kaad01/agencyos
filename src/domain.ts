@@ -800,6 +800,96 @@ export function customerReportRollups(data: AppData, entries: TimeEntry[]) {
     .sort((left, right) => right.revenue - left.revenue || right.hours - left.hours);
 }
 
+export type ReportScopeInsightTone = 'green' | 'amber' | 'blue' | 'neutral';
+export type ReportScopeInsight = {
+  label: string;
+  status: string;
+  detail: string;
+  action: string;
+  tone: ReportScopeInsightTone;
+};
+
+export function reportScopeInsights(data: AppData, entries: TimeEntry[]) {
+  const scopedData = { ...data, timeEntries: entries };
+  const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+  const billableHours = entries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+  const internalHours = totalHours - billableHours;
+  const revenue = entries.reduce((sum, entry) => {
+    const project = data.projects.find((item) => item.id === entry.projectId);
+    return sum + (entry.billable ? entry.hours * (project?.hourlyRate ?? 0) : 0);
+  }, 0);
+  const billableRatio = totalHours ? Math.round((billableHours / totalHours) * 100) : 0;
+  const internalRatio = totalHours ? Math.round((internalHours / totalHours) * 100) : 0;
+  const customerRollups = customerReportRollups(data, entries);
+  const topCustomer = customerRollups[0];
+  const topCustomerShare = revenue && topCustomer ? Math.round((topCustomer.revenue / revenue) * 100) : 0;
+  const projectRollups = data.projects
+    .map((project) => ({
+      project,
+      hours: projectHours(scopedData, project.id),
+      revenue: projectRevenue(scopedData, project.id),
+      budgetUsedPercent: projectBudgetUsedPercent(scopedData, project.id),
+    }))
+    .filter((rollup) => rollup.hours > 0)
+    .sort((left, right) => right.budgetUsedPercent - left.budgetUsedPercent || right.revenue - left.revenue || right.hours - left.hours);
+  const budgetWatch = projectRollups[0];
+  const insights: ReportScopeInsight[] = [
+    {
+      label: 'Billable mix',
+      status: totalHours === 0 ? 'Waiting for time' : `${billableRatio}% billable`,
+      detail: totalHours
+        ? `${billableHours}h billable and ${internalHours}h internal in this report scope.`
+        : 'No time entries match the current report filters yet.',
+      action: totalHours === 0 ? 'Log time or widen the filters before reviewing revenue.' : billableRatio >= 75 ? 'Healthy mix for client-facing review.' : 'Review internal work before sending the report.',
+      tone: totalHours === 0 ? 'blue' : billableRatio >= 75 ? 'green' : 'amber',
+    },
+    {
+      label: 'Client concentration',
+      status: topCustomer ? `${topCustomer.customer.name} leads` : 'No client signal',
+      detail: topCustomer
+        ? `${topCustomerShare}% of scoped revenue comes from ${topCustomer.customer.name}.`
+        : 'No customer has billable value in this report scope.',
+      action: topCustomerShare >= 70 ? 'Check whether delivery risk is too concentrated.' : topCustomer ? 'Revenue is spread across the scoped client mix.' : 'Add billable client work to create a report signal.',
+      tone: !topCustomer ? 'blue' : topCustomerShare >= 70 ? 'amber' : 'green',
+    },
+    {
+      label: 'Internal drag',
+      status: totalHours === 0 ? 'No time yet' : `${internalRatio}% internal`,
+      detail: totalHours
+        ? `${internalHours}h of ${totalHours}h is non-billable context in this scope.`
+        : 'Internal/non-billable drag appears once time is logged.',
+      action: internalRatio >= 25 ? 'Confirm internal work is intentional before invoicing.' : totalHours ? 'Internal effort is controlled for this report.' : 'Start with a billable entry tied to delivery work.',
+      tone: totalHours === 0 ? 'blue' : internalRatio >= 25 ? 'amber' : 'green',
+    },
+    {
+      label: 'Budget watch',
+      status: budgetWatch ? `${budgetWatch.project.name} at ${budgetWatch.budgetUsedPercent}%` : 'No project spend',
+      detail: budgetWatch
+        ? `${formatCurrency(budgetWatch.revenue)} earned against ${formatCurrency(budgetWatch.project.budget)} budget.`
+        : 'No project has time in this report scope.',
+      action: !budgetWatch ? 'Add project time to monitor budget usage.' : budgetWatch.budgetUsedPercent >= 80 ? 'Review scope and budget before more work is approved.' : 'No scoped project is close to its budget ceiling.',
+      tone: !budgetWatch ? 'blue' : budgetWatch.budgetUsedPercent >= 80 ? 'amber' : 'green',
+    },
+  ];
+  const attentionCount = insights.filter((item) => item.tone === 'amber').length;
+
+  return {
+    headline: totalHours === 0
+      ? 'No report signal in this scope yet'
+      : attentionCount
+        ? `Review ${attentionCount} report signal${attentionCount === 1 ? '' : 's'}`
+        : 'Report scope looks healthy',
+    primaryAction: insights.find((item) => item.tone === 'amber')?.action ?? insights.find((item) => item.tone === 'blue')?.action ?? 'Export this scope or narrow the filters for a client review.',
+    attentionCount,
+    totalHours,
+    billableHours,
+    internalHours,
+    billableRatio,
+    revenue,
+    insights,
+  };
+}
+
 export function moveTicketOnBoard(data: AppData, ticketId: string, status: TicketStatus, beforeTicketId?: string): AppData {
   const movedTicket = data.tickets.find((ticket) => ticket.id === ticketId);
   if (!movedTicket) return data;

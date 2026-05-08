@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -432,6 +432,45 @@ describe('AgencyOS operations metrics', () => {
     expect(rollups.map((rollup) => rollup.customer.id)).toEqual(['cust-northstar', 'cust-acme']);
     expect(rollups[0]).toMatchObject({ hours: 5.5, billableHours: 5.5, internalHours: 0, projectCount: 1, revenue: 660 });
     expect(rollups[1]).toMatchObject({ hours: 5.5, billableHours: 4, internalHours: 1.5, projectCount: 1, revenue: 440 });
+  });
+
+  it('coaches report scope insights from billable mix, client concentration, internal drag, and budget', () => {
+    const insights = reportScopeInsights(initialData, filterTimeEntriesForReport(initialData, { period: 'all' }));
+
+    expect(insights).toMatchObject({
+      headline: 'Report scope looks healthy',
+      primaryAction: 'Export this scope or narrow the filters for a client review.',
+      attentionCount: 0,
+      totalHours: 11,
+      billableHours: 9.5,
+      internalHours: 1.5,
+      billableRatio: 86,
+      revenue: 1100,
+    });
+    expect(insights.insights.map((item) => [item.label, item.status, item.tone])).toEqual([
+      ['Billable mix', '86% billable', 'green'],
+      ['Client concentration', 'Northstar Labs leads', 'green'],
+      ['Internal drag', '14% internal', 'green'],
+      ['Budget watch', 'Brand refresh rollout at 2%', 'green'],
+    ]);
+
+    const internalHeavy = {
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-internal-strategy', projectId: 'proj-brand', ticketId: 'tic-brief', colleagueId: 'col-mina', date: '2026-05-06', hours: 8, billable: false, note: 'Internal strategy review' },
+      ],
+    };
+    const warnings = reportScopeInsights(internalHeavy, filterTimeEntriesForReport(internalHeavy, { period: 'all', customerId: 'cust-northstar' }));
+
+    expect(warnings.headline).toBe('Review 3 report signals');
+    expect(warnings.attentionCount).toBe(3);
+    expect(warnings.insights.map((item) => item.tone)).toEqual(['amber', 'amber', 'amber', 'green']);
+    expect(reportScopeInsights(initialData, [])).toMatchObject({
+      headline: 'No report signal in this scope yet',
+      attentionCount: 0,
+      primaryAction: 'Log time or widen the filters before reviewing revenue.',
+    });
   });
 
   it('formats agency budgets as EUR', () => {
