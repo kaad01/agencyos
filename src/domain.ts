@@ -447,6 +447,40 @@ export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
   };
 }
 
+export type WeeklyApprovalStatus = 'Ready for client review' | 'Needs cleanup' | 'Needs time';
+
+export function weeklyTimesheetApprovalSnapshot(data: AppData, filters: TimesheetFilters) {
+  const audit = weeklyTimesheetAudit(data, filters);
+  const review = weeklyTimesheetReview(data, filters);
+  const cleanupItemCount = audit.missingTicketCount + audit.missingNoteCount + audit.internalEntryCount;
+  const status: WeeklyApprovalStatus = audit.entryCount === 0
+    ? 'Needs time'
+    : audit.readyForExport && review.unloggedTicketCount === 0 && review.missingAssignees.length === 0
+      ? 'Ready for client review'
+      : 'Needs cleanup';
+  const nextAction = audit.entryCount === 0
+    ? 'Log scoped time before reviewing this week.'
+    : audit.missingTicketCount > 0
+      ? 'Attach delivery tickets to loose time entries.'
+      : audit.missingNoteCount > 0
+        ? 'Add short notes for invoice context.'
+        : review.unloggedTicketCount > 0
+          ? 'Capture time for active tickets without weekly entries.'
+          : audit.internalEntryCount > 0
+            ? 'Confirm internal time before sharing externally.'
+            : 'Review and export this week with confidence.';
+
+  return {
+    status,
+    nextAction,
+    cleanupItemCount,
+    clientReadyHours: audit.readyForExport ? audit.billableHours : 0,
+    billableHours: audit.billableHours,
+    internalHours: audit.internalHours,
+    coverageLabel: review.coveredAssigneeCount + '/' + (review.expectedAssigneeCount || review.coveredAssigneeCount) + ' assignees covered',
+  };
+}
+
 
 
 export function weeklyTimesheetValueSummary(data: AppData, filters: TimesheetFilters) {
