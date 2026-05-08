@@ -69,6 +69,36 @@ export type AppData = {
 
 export type TimeEntryDraft = Omit<TimeEntry, 'id'>;
 
+export type TimeEntryImpactPreview = {
+  hours: number;
+  revenue: number;
+  projectHoursAfter: number;
+  estimateUsedAfter: number;
+  budgetUsedAfter: number;
+  deliverySignalAfter: string;
+  ticketEstimateUsedAfter: number | null;
+  needsTicket: boolean;
+};
+
+export function timeEntryImpactPreview(data: AppData, draft: TimeEntryDraft): TimeEntryImpactPreview {
+  const project = data.projects.find((item) => item.id === draft.projectId);
+  const previewData: AppData = {
+    ...data,
+    timeEntries: [{ id: 'time-preview', ...draft }, ...data.timeEntries],
+  };
+
+  return {
+    hours: draft.hours,
+    revenue: draft.billable ? draft.hours * (project?.hourlyRate ?? 0) : 0,
+    projectHoursAfter: projectHours(previewData, draft.projectId),
+    estimateUsedAfter: projectEstimateUsedPercent(previewData, draft.projectId),
+    budgetUsedAfter: projectBudgetUsedPercent(previewData, draft.projectId),
+    deliverySignalAfter: projectDeliverySignal(previewData, draft.projectId),
+    ticketEstimateUsedAfter: draft.ticketId ? ticketEstimateUsedPercent(previewData, draft.ticketId) : null,
+    needsTicket: draft.billable && !draft.ticketId,
+  };
+}
+
 export function timeEntryDraftForTicket(data: AppData, ticketId: string, date: string, hours = 0.25): TimeEntryDraft | null {
   const ticket = data.tickets.find((item) => item.id === ticketId);
   if (!ticket) return null;
