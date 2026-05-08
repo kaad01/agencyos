@@ -421,6 +421,64 @@ export function weeklyTimeCaptureFocus(data: AppData, filters: TimesheetFilters)
 
 
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
+export type WeeklyDayHealthStatus = 'No time' | 'Needs cleanup' | 'Light capture' | 'On track' | 'Heavy day';
+
+export function weeklyTimesheetDayHealth(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const weekStart = weekStartDate(filters.weekDate);
+  const activeAssigneeIds = new Set(data.tickets
+    .filter((ticket) => {
+      if (ticket.status === 'Done') return false;
+      if (filters.projectId && ticket.projectId !== filters.projectId) return false;
+      if (filters.colleagueId && ticket.assigneeId !== filters.colleagueId) return false;
+      return true;
+    })
+    .map((ticket) => ticket.assigneeId)
+    .filter(Boolean));
+  const contributorIds = new Set(scopedEntries.map((entry) => entry.colleagueId));
+  const expectedColleagueIds = filters.colleagueId
+    ? new Set([filters.colleagueId])
+    : activeAssigneeIds.size
+      ? activeAssigneeIds
+      : contributorIds;
+  const targetHours = Math.round(data.colleagues
+    .filter((person) => expectedColleagueIds.has(person.id))
+    .reduce((sum, person) => sum + weeklyCapacityTargetHours(person) / 5, 0) * 10) / 10;
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(weekStart, index);
+    const entries = scopedEntries.filter((entry) => entry.date === date);
+    const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+    const billableHours = entries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+    const missingTicketCount = entries.filter((entry) => !entry.ticketId).length;
+    const missingNoteCount = entries.filter((entry) => !entry.note.trim()).length;
+    const dailyTargetHours = index < 5 ? targetHours : 0;
+    const usagePercent = dailyTargetHours > 0 ? Math.round((totalHours / dailyTargetHours) * 100) : 0;
+    const status: WeeklyDayHealthStatus = totalHours === 0
+      ? 'No time'
+      : missingTicketCount > 0 || missingNoteCount > 0
+        ? 'Needs cleanup'
+        : dailyTargetHours > 0 && usagePercent < 60
+          ? 'Light capture'
+          : dailyTargetHours > 0 && usagePercent > 110
+            ? 'Heavy day'
+            : 'On track';
+
+    return {
+      date,
+      label: new Date(`${date}T00:00:00.000Z`).toLocaleDateString(undefined, { weekday: 'short' }),
+      entryCount: entries.length,
+      totalHours,
+      billableHours,
+      internalHours: totalHours - billableHours,
+      missingTicketCount,
+      missingNoteCount,
+      targetHours: dailyTargetHours,
+      usagePercent,
+      status,
+    };
+  });
+}
 
 
 export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
