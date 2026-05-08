@@ -460,6 +460,8 @@ describe('AgencyOS operations metrics', () => {
       totalHours: 1.5,
       internalHours: 1.5,
       cleanupCount: 0,
+      firstCleanupEntryId: '',
+      firstInternalEntryId: 'time-4',
       headline: '1.5h internal time to confirm',
       topProject: { id: 'proj-erp' },
       topContributor: { id: 'col-leo' },
@@ -484,7 +486,7 @@ describe('AgencyOS operations metrics', () => {
       ],
     }, { weekDate: '2026-05-06' });
 
-    expect(cleanup[2]).toMatchObject({ cleanupCount: 1, headline: '1 cleanup item before review', action: 'Open the affected entries and add tickets or notes.' });
+    expect(cleanup[2]).toMatchObject({ cleanupCount: 1, firstCleanupEntryId: 'time-needs-cleanup', headline: '1 cleanup item before review', action: 'Open the affected entries and add tickets or notes.' });
   });
 
   it('audits weekly timesheets for export cleanup signals', () => {

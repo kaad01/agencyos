@@ -510,6 +510,8 @@ export type WeeklyDayReviewBrief = {
   internalHours: number;
   entryCount: number;
   cleanupCount: number;
+  firstCleanupEntryId: string;
+  firstInternalEntryId: string;
   topProject: Project | null;
   topProjectHours: number;
   topContributor: Colleague | null;
@@ -585,7 +587,10 @@ export function weeklyTimesheetDayReviewBriefs(data: AppData, filters: Timesheet
     const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
     const billableHours = entries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
     const internalHours = totalHours - billableHours;
-    const cleanupCount = entries.filter((entry) => !entry.ticketId || !entry.note.trim()).length;
+    const cleanupEntries = entries.filter((entry) => !entry.ticketId || !entry.note.trim());
+    const cleanupCount = cleanupEntries.length;
+    const firstCleanupEntryId = cleanupEntries[0]?.id ?? '';
+    const firstInternalEntryId = entries.find((entry) => !entry.billable)?.id ?? '';
     const projectHours = entries.reduce<Record<string, number>>((totals, entry) => {
       totals[entry.projectId] = (totals[entry.projectId] ?? 0) + entry.hours;
       return totals;
@@ -622,6 +627,8 @@ export function weeklyTimesheetDayReviewBriefs(data: AppData, filters: Timesheet
       internalHours,
       entryCount: entries.length,
       cleanupCount,
+      firstCleanupEntryId,
+      firstInternalEntryId,
       topProject,
       topProjectHours,
       topContributor,
