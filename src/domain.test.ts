@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryImpactPreview, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimerStarterQueue, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryImpactPreview, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimerStarterQueue, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetDayStartSuggestions, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -235,6 +235,36 @@ describe('AgencyOS operations metrics', () => {
 
     expect(queue.map((item) => item.ticket.id)).toEqual(['tic-brief', 'tic-overdue-small', 'tic-assets']);
     expect(queue[1]).toMatchObject({ urgency: 'Overdue', suggestedHours: 0.5 });
+  });
+
+  it('connects daily timesheet cards to due timer start suggestions', () => {
+    const suggestions = weeklyTimesheetDayStartSuggestions(initialData, { weekDate: '2026-05-13', projectId: 'proj-brand' });
+
+    expect(suggestions.map((day) => [day.date, day.suggestion?.ticket.id ?? null])).toEqual([
+      ['2026-05-11', null],
+      ['2026-05-12', 'tic-brief'],
+      ['2026-05-13', null],
+      ['2026-05-14', null],
+      ['2026-05-15', 'tic-assets'],
+      ['2026-05-16', null],
+      ['2026-05-17', null],
+    ]);
+    expect(suggestions[1].suggestion).toMatchObject({ urgency: 'Due this week', suggestedHours: 2, note: 'Timer: Finalize launch briefing' });
+  });
+
+  it('puts overdue timer suggestions on the first day of the selected week', () => {
+    const data = {
+      ...initialData,
+      tickets: [
+        ...initialData.tickets,
+        { id: 'tic-overdue-small', projectId: 'proj-brand', title: 'Overdue polish', description: 'Small overdue item.', assigneeId: 'col-sara', status: 'Todo' as const, priority: 'Medium' as const, estimateHours: 0.5, dueDate: '2026-05-09' },
+      ],
+    };
+
+    const suggestions = weeklyTimesheetDayStartSuggestions(data, { weekDate: '2026-05-13', projectId: 'proj-brand' });
+
+    expect(suggestions[0].suggestion).toMatchObject({ urgency: 'Overdue', suggestedHours: 0.5 });
+    expect(suggestions[0].suggestion?.ticket.id).toBe('tic-overdue-small');
   });
 
   it('summarizes weekly timesheet readiness before review', () => {
