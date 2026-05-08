@@ -503,6 +503,20 @@ export function weeklyTimesheetDayStartSuggestions(data: AppData, filters: Times
 
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
 export type WeeklyDayHealthStatus = 'No time' | 'Needs cleanup' | 'Light capture' | 'On track' | 'Heavy day';
+export type WeeklyDayReviewBrief = {
+  date: string;
+  totalHours: number;
+  billableHours: number;
+  internalHours: number;
+  entryCount: number;
+  cleanupCount: number;
+  topProject: Project | null;
+  topProjectHours: number;
+  topContributor: Colleague | null;
+  topContributorHours: number;
+  headline: string;
+  action: string;
+};
 
 export function weeklyTimesheetDayHealth(data: AppData, filters: TimesheetFilters) {
   const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
@@ -561,6 +575,62 @@ export function weeklyTimesheetDayHealth(data: AppData, filters: TimesheetFilter
   });
 }
 
+export function weeklyTimesheetDayReviewBriefs(data: AppData, filters: TimesheetFilters): WeeklyDayReviewBrief[] {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const weekStart = weekStartDate(filters.weekDate);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(weekStart, index);
+    const entries = scopedEntries.filter((entry) => entry.date === date);
+    const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+    const billableHours = entries.filter((entry) => entry.billable).reduce((sum, entry) => sum + entry.hours, 0);
+    const internalHours = totalHours - billableHours;
+    const cleanupCount = entries.filter((entry) => !entry.ticketId || !entry.note.trim()).length;
+    const projectHours = entries.reduce<Record<string, number>>((totals, entry) => {
+      totals[entry.projectId] = (totals[entry.projectId] ?? 0) + entry.hours;
+      return totals;
+    }, {});
+    const contributorHours = entries.reduce<Record<string, number>>((totals, entry) => {
+      totals[entry.colleagueId] = (totals[entry.colleagueId] ?? 0) + entry.hours;
+      return totals;
+    }, {});
+    const topProjectId = Object.entries(projectHours).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+    const topContributorId = Object.entries(contributorHours).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+    const topProject = data.projects.find((project) => project.id === topProjectId) ?? null;
+    const topContributor = data.colleagues.find((person) => person.id === topContributorId) ?? null;
+    const topProjectHours = topProjectId ? projectHours[topProjectId] : 0;
+    const topContributorHours = topContributorId ? contributorHours[topContributorId] : 0;
+    const headline = entries.length === 0
+      ? 'No work captured yet'
+      : cleanupCount > 0
+        ? `${cleanupCount} cleanup item${cleanupCount === 1 ? '' : 's'} before review`
+        : internalHours > 0
+          ? `${internalHours}h internal time to confirm`
+          : 'Client-ready day';
+    const action = entries.length === 0
+      ? 'Log work or start the suggested timer for this day.'
+      : cleanupCount > 0
+        ? 'Open the affected entries and add tickets or notes.'
+        : internalHours > 0
+          ? 'Confirm what should stay internal before export.'
+          : 'Ready to include in the weekly client packet.';
+
+    return {
+      date,
+      totalHours,
+      billableHours,
+      internalHours,
+      entryCount: entries.length,
+      cleanupCount,
+      topProject,
+      topProjectHours,
+      topContributor,
+      topContributorHours,
+      headline,
+      action,
+    };
+  });
+}
 
 export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
   const scopedEntries = filterTimeEntriesForTimesheet(data, filters);

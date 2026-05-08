@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryImpactPreview, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimerStarterQueue, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetDayStartSuggestions, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryImpactPreview, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimerStarterQueue, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetDayReviewBriefs, weeklyTimesheetDayStartSuggestions, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -450,6 +450,41 @@ describe('AgencyOS operations metrics', () => {
     }, { weekDate: '2026-05-06' });
 
     expect(cleanup[2]).toMatchObject({ status: 'Needs cleanup', missingTicketCount: 1, missingNoteCount: 1 });
+  });
+
+  it('builds daily review briefs for scoped timesheet closeout', () => {
+    const briefs = weeklyTimesheetDayReviewBriefs(initialData, { weekDate: '2026-05-06' });
+
+    expect(briefs[0]).toMatchObject({
+      date: '2026-05-04',
+      totalHours: 1.5,
+      internalHours: 1.5,
+      cleanupCount: 0,
+      headline: '1.5h internal time to confirm',
+      topProject: { id: 'proj-erp' },
+      topContributor: { id: 'col-leo' },
+    });
+    expect(briefs[1]).toMatchObject({
+      date: '2026-05-05',
+      totalHours: 9.5,
+      billableHours: 9.5,
+      headline: 'Client-ready day',
+      topProject: { id: 'proj-brand' },
+      topProjectHours: 5.5,
+      topContributor: { id: 'col-jonas' },
+      topContributorHours: 4,
+    });
+    expect(briefs[2]).toMatchObject({ date: '2026-05-06', entryCount: 0, headline: 'No work captured yet' });
+
+    const cleanup = weeklyTimesheetDayReviewBriefs({
+      ...initialData,
+      timeEntries: [
+        ...initialData.timeEntries,
+        { id: 'time-needs-cleanup', projectId: 'proj-brand', ticketId: '', colleagueId: 'col-mina', date: '2026-05-06', hours: 1, billable: true, note: '' },
+      ],
+    }, { weekDate: '2026-05-06' });
+
+    expect(cleanup[2]).toMatchObject({ cleanupCount: 1, headline: '1 cleanup item before review', action: 'Open the affected entries and add tickets or notes.' });
   });
 
   it('audits weekly timesheets for export cleanup signals', () => {
