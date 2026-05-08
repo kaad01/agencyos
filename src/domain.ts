@@ -508,6 +508,54 @@ export function weeklyTimesheetValueSummary(data: AppData, filters: TimesheetFil
   };
 }
 
+export type WeeklyClientPacketStatus = 'Ready to send' | 'Draft needs cleanup' | 'No client time';
+
+export function weeklyTimesheetClientPacket(data: AppData, filters: TimesheetFilters) {
+  const scopedEntries = filterTimeEntriesForTimesheet(data, filters);
+  const clientEntries = scopedEntries.filter((entry) => entry.billable && entry.ticketId && entry.note.trim());
+  const excludedEntries = scopedEntries.filter((entry) => !entry.billable || !entry.ticketId || !entry.note.trim());
+  const projectRates = new Map(data.projects.map((project) => [project.id, project.hourlyRate]));
+  const projectsByCustomer = new Map(data.customers.map((customer) => [customer.id, data.projects.filter((project) => project.customerId === customer.id)]));
+  const totalHours = clientEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const earnedRevenue = clientEntries.reduce((sum, entry) => sum + entry.hours * (projectRates.get(entry.projectId) ?? 0), 0);
+  const status: WeeklyClientPacketStatus = clientEntries.length === 0
+    ? 'No client time'
+    : excludedEntries.length
+      ? 'Draft needs cleanup'
+      : 'Ready to send';
+
+  const customers = data.customers
+    .map((customer) => {
+      const customerProjectIds = new Set((projectsByCustomer.get(customer.id) ?? []).map((project) => project.id));
+      const entries = clientEntries.filter((entry) => customerProjectIds.has(entry.projectId));
+      const projectIds = new Set(entries.map((entry) => entry.projectId));
+      const hours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+      const revenue = entries.reduce((sum, entry) => sum + entry.hours * (projectRates.get(entry.projectId) ?? 0), 0);
+      const highlights = entries
+        .slice()
+        .sort((left, right) => left.date.localeCompare(right.date) || left.id.localeCompare(right.id))
+        .slice(0, 3)
+        .map((entry) => entry.note.trim());
+
+      return { customer, hours, revenue, projectCount: projectIds.size, entryCount: entries.length, highlights };
+    })
+    .filter((customer) => customer.hours > 0)
+    .sort((left, right) => right.revenue - left.revenue || right.hours - left.hours || left.customer.name.localeCompare(right.customer.name));
+
+  return {
+    status,
+    totalHours,
+    earnedRevenue,
+    customerCount: customers.length,
+    includedEntryCount: clientEntries.length,
+    excludedEntryCount: excludedEntries.length,
+    customers,
+    headline: totalHours
+      ? `${totalHours}h client-ready across ${customers.length} customer${customers.length === 1 ? '' : 's'}`
+      : 'No billable, ticket-linked notes are ready for client sharing yet.',
+  };
+}
+
 export type WeeklyReviewQueueIssue = 'Missing ticket' | 'Missing note' | 'Confirm internal';
 
 export type WeeklyReviewQueueItem = {
