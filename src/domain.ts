@@ -3,6 +3,7 @@ export type TicketStatus = 'Backlog' | 'Todo' | 'In progress' | 'Review' | 'Done
 export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 export type CustomerHealth = 'Excellent' | 'Healthy' | 'Needs care' | 'New';
 export type ReportPeriod = 'all' | '7' | '30';
+export type ReportBillableFilter = 'all' | 'billable' | 'internal';
 
 export type Customer = {
   id: string;
@@ -973,6 +974,7 @@ export type ReportFilters = {
   customerId?: string;
   projectId?: string;
   colleagueId?: string;
+  billable?: ReportBillableFilter;
 };
 
 export function filterTimeEntriesForReport(data: AppData, filters: ReportFilters) {
@@ -993,6 +995,8 @@ export function filterTimeEntriesForReport(data: AppData, filters: ReportFilters
     if (filters.customerId && !customerProjectIds?.has(entry.projectId)) return false;
     if (filters.projectId && entry.projectId !== filters.projectId) return false;
     if (filters.colleagueId && entry.colleagueId !== filters.colleagueId) return false;
+    if (filters.billable === 'billable' && !entry.billable) return false;
+    if (filters.billable === 'internal' && entry.billable) return false;
     return true;
   });
 }

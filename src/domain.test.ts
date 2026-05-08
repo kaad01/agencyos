@@ -579,9 +579,11 @@ describe('AgencyOS operations metrics', () => {
     expect(filterTimeEntriesForTimesheet(initialData, { weekDate: '2026-05-13' })).toHaveLength(0);
   });
 
-  it('filters report time by period, customer, project, and person', () => {
+  it('filters report time by period, customer, project, person, and work type', () => {
     expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-acme' }).map((entry) => entry.id)).toEqual(['time-3', 'time-4']);
     expect(filterTimeEntriesForReport(initialData, { period: 'all', projectId: 'proj-brand', colleagueId: 'col-sara' }).map((entry) => entry.id)).toEqual(['time-2']);
+    expect(filterTimeEntriesForReport(initialData, { period: 'all', billable: 'billable' }).map((entry) => entry.id)).toEqual(['time-1', 'time-2', 'time-3']);
+    expect(filterTimeEntriesForReport(initialData, { period: 'all', customerId: 'cust-acme', billable: 'internal' }).map((entry) => entry.id)).toEqual(['time-4']);
     expect(filterTimeEntriesForReport(initialData, { period: '7', customerId: 'cust-northstar', projectId: 'proj-erp' })).toHaveLength(0);
   });
 
