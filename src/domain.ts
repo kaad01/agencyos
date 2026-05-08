@@ -485,6 +485,22 @@ export function weeklyTimerStarterQueue(data: AppData, filters: TimesheetFilters
 }
 
 
+
+export function weeklyTimesheetDayStartSuggestions(data: AppData, filters: TimesheetFilters) {
+  const weekStart = weekStartDate(filters.weekDate);
+  const queue = weeklyTimerStarterQueue(data, filters);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(weekStart, index);
+    const suggestion = queue.find((item) => item.ticket.dueDate === date || (index === 0 && item.ticket.dueDate < weekStart)) ?? null;
+
+    return {
+      date,
+      suggestion,
+    };
+  });
+}
+
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
 export type WeeklyDayHealthStatus = 'No time' | 'Needs cleanup' | 'Light capture' | 'On track' | 'Heavy day';
 
