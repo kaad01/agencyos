@@ -448,6 +448,14 @@ export function weeklyTimesheetAudit(data: AppData, filters: TimesheetFilters) {
 }
 
 export type WeeklyApprovalStatus = 'Ready for client review' | 'Needs cleanup' | 'Needs time';
+export type WeeklyTimesheetCoachTone = 'green' | 'amber' | 'blue' | 'neutral';
+export type WeeklyTimesheetCoachItem = {
+  label: string;
+  status: string;
+  detail: string;
+  action: string;
+  tone: WeeklyTimesheetCoachTone;
+};
 
 export function weeklyTimesheetApprovalSnapshot(data: AppData, filters: TimesheetFilters) {
   const audit = weeklyTimesheetAudit(data, filters);
@@ -478,6 +486,79 @@ export function weeklyTimesheetApprovalSnapshot(data: AppData, filters: Timeshee
     billableHours: audit.billableHours,
     internalHours: audit.internalHours,
     coverageLabel: review.coveredAssigneeCount + '/' + (review.expectedAssigneeCount || review.coveredAssigneeCount) + ' assignees covered',
+  };
+}
+
+export function weeklyTimesheetCoach(data: AppData, filters: TimesheetFilters) {
+  const review = weeklyTimesheetReview(data, filters);
+  const audit = weeklyTimesheetAudit(data, filters);
+  const value = weeklyTimesheetValueSummary(data, filters);
+  const packet = weeklyTimesheetClientPacket(data, filters);
+  const queue = weeklyTimesheetReviewQueue(data, filters);
+  const unloggedTickets = weeklyUnloggedTickets(data, filters);
+  const overCapacityPeople = weeklyTimesheetCapacity(data, filters).filter((signal) => signal.status === 'Over capacity');
+  const checklist: WeeklyTimesheetCoachItem[] = [
+    {
+      label: 'Capture coverage',
+      status: review.totalHours === 0 ? 'Needs time' : unloggedTickets.length ? 'Gaps remain' : 'Covered',
+      detail: review.totalHours === 0
+        ? 'No time has been logged in this scope yet.'
+        : unloggedTickets.length
+          ? `${unloggedTickets.length} active ticket${unloggedTickets.length === 1 ? '' : 's'} still need weekly time.`
+          : `${review.coveredAssigneeCount}/${review.expectedAssigneeCount || review.coveredAssigneeCount} active assignees have coverage.`,
+      action: review.totalHours === 0 ? 'Log the first scoped entry.' : unloggedTickets.length ? 'Start with the top missing ticket.' : 'Keep the week ready for review.',
+      tone: review.totalHours === 0 || unloggedTickets.length ? 'amber' : 'green',
+    },
+    {
+      label: 'Export hygiene',
+      status: queue.length ? 'Cleanup needed' : audit.entryCount ? 'Clean' : 'Waiting for entries',
+      detail: queue.length
+        ? `${queue.length} cleanup item${queue.length === 1 ? '' : 's'} before a clean client report.`
+        : audit.entryCount
+          ? 'Ticket links and notes are ready for export.'
+          : 'Log time before checking invoice context.',
+      action: queue[0]?.action ?? (audit.entryCount ? 'No cleanup needed.' : 'Add a ticket-linked note when logging time.'),
+      tone: queue.length ? 'amber' : audit.entryCount ? 'green' : 'blue',
+    },
+    {
+      label: 'Client packet',
+      status: packet.status,
+      detail: packet.totalHours
+        ? `${packet.totalHours}h client-ready · ${formatCurrency(packet.earnedRevenue)} earned.`
+        : 'No billable, ticket-linked notes are ready for clients yet.',
+      action: packet.status === 'Ready to send' ? 'Package this week for client review.' : 'Add billable time with a ticket and note.',
+      tone: packet.status === 'Ready to send' ? 'green' : packet.status === 'Draft needs cleanup' ? 'amber' : 'blue',
+    },
+    {
+      label: 'Capacity check',
+      status: overCapacityPeople.length ? 'Review load' : 'No spikes',
+      detail: overCapacityPeople.length
+        ? `${overCapacityPeople.map((signal) => signal.person.name).join(', ')} above weekly target.`
+        : `${value.totalHours}h logged against scoped team capacity.`,
+      action: overCapacityPeople.length ? 'Rebalance work before approving the week.' : 'Capacity looks safe for this scope.',
+      tone: overCapacityPeople.length ? 'amber' : 'green',
+    },
+  ];
+  const attentionCount = checklist.filter((item) => item.tone === 'amber').length;
+  const headline = review.totalHours === 0
+    ? 'Start by logging scoped delivery time'
+    : queue.length
+      ? `Clean up ${queue.length} timesheet item${queue.length === 1 ? '' : 's'}`
+      : unloggedTickets.length
+        ? `Capture time for ${unloggedTickets.length} active ticket${unloggedTickets.length === 1 ? '' : 's'}`
+        : overCapacityPeople.length
+          ? 'Review capacity before approving'
+          : packet.status === 'Ready to send'
+            ? 'Ready to package for client review'
+            : 'Review billable mix before sharing';
+  const primaryAction = checklist.find((item) => item.tone === 'amber')?.action ?? checklist.find((item) => item.tone === 'blue')?.action ?? 'Approve and export this weekly packet.';
+
+  return {
+    headline,
+    primaryAction,
+    attentionCount,
+    ready: attentionCount === 0 && review.totalHours > 0 && packet.status === 'Ready to send',
+    checklist,
   };
 }
 
