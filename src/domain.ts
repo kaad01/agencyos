@@ -449,6 +449,41 @@ export function weeklyTimeCaptureFocus(data: AppData, filters: TimesheetFilters)
   };
 }
 
+export type WeeklyTimerQueueUrgency = 'Overdue' | 'Due this week' | 'Planned';
+
+export function weeklyTimerStarterQueue(data: AppData, filters: TimesheetFilters) {
+  const weekStart = weekStartDate(filters.weekDate);
+  const weekEnd = addDays(weekStart, 6);
+  const priorityRank: Record<TicketPriority, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+
+  return weeklyUnloggedTickets(data, filters)
+    .map((ticket) => {
+      const project = data.projects.find((item) => item.id === ticket.projectId) ?? null;
+      const assignee = data.colleagues.find((person) => person.id === ticket.assigneeId) ?? null;
+      const loggedHours = ticketLoggedHours(data, ticket.id);
+      const remainingEstimateHours = Math.max(0.25, Math.round(Math.max(0, ticket.estimateHours - loggedHours) * 4) / 4);
+      const urgency: WeeklyTimerQueueUrgency = ticket.dueDate < weekStart ? 'Overdue' : ticket.dueDate <= weekEnd ? 'Due this week' : 'Planned';
+      const urgencyRank = urgency === 'Overdue' ? 0 : urgency === 'Due this week' ? 1 : 2;
+
+      return {
+        ticket,
+        project,
+        assignee,
+        urgency,
+        urgencyRank,
+        remainingEstimateHours,
+        suggestedHours: Math.min(2, Math.max(0.25, Math.ceil(remainingEstimateHours * 4) / 4)),
+        note: `Timer: ${ticket.title}`,
+        billable: true,
+      };
+    })
+    .sort((left, right) => priorityRank[left.ticket.priority] - priorityRank[right.ticket.priority]
+      || left.urgencyRank - right.urgencyRank
+      || left.ticket.dueDate.localeCompare(right.ticket.dueDate)
+      || right.remainingEstimateHours - left.remainingEstimateHours
+      || left.ticket.title.localeCompare(right.ticket.title));
+}
+
 
 export type TimesheetReviewStatus = 'Ready to review' | 'Needs time capture' | 'No time logged';
 export type WeeklyDayHealthStatus = 'No time' | 'Needs cleanup' | 'Light capture' | 'On track' | 'Heavy day';
