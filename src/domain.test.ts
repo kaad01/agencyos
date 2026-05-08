@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
+import { addDays, calculateMetrics, colleagueBillableRatio, colleagueDeliveryLoadPercent, colleagueLoadStatus, colleagueLoggedHours, colleagueOpenTicketEstimate, customerHours, customerReportRollups, customerRevenue, customerTickets, filterTimeEntriesForReport, filterTimeEntriesForTimesheet, formatCurrency, initialData, moveTicketOnBoard, projectBillableHours, projectBudgetRemaining, projectBudgetUsedPercent, projectDeliverySignal, projectEffectiveRate, projectEstimatedHours, projectEstimateUsedPercent, projectHours, projectNonBillableHours, projectRemainingEstimateHours, projectRevenue, reportScopeInsights, roundedTimerHours, ticketDeliverySignal, ticketEstimateUsedPercent, ticketLoggedHours, timeEntriesForWeek, timeEntryDraftForTicket, timeEntryImpactPreview, timeEntryDraftForTimesheetScope, weekStartDate, weeklyCapacityTargetHours, weeklyTimeCaptureFocus, weeklyTimesheetApprovalSnapshot, weeklyTimesheetAudit, weeklyTimesheetByColleague, weeklyTimesheetByCustomer, weeklyTimesheetByProject, weeklyTimesheetCapacity, weeklyTimesheetClientPacket, weeklyTimesheetCoach, weeklyTimesheetDayHealth, weeklyTimesheetReview, weeklyTimesheetReviewQueue, weeklyTimesheetValueSummary, weeklyUnloggedTickets } from './domain';
 
 describe('AgencyOS operations metrics', () => {
   it('calculates dashboard metrics from projects, tickets, and time entries', () => {
@@ -106,6 +106,42 @@ describe('AgencyOS operations metrics', () => {
     expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T10:04:00.000Z'))).toBe(0.25);
     expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T10:37:00.000Z'))).toBe(0.5);
     expect(roundedTimerHours('2026-05-06T10:00:00.000Z', Date.parse('2026-05-06T11:53:00.000Z'))).toBe(2);
+  });
+
+  it('previews timer save impact before creating the time entry', () => {
+    const billableImpact = timeEntryImpactPreview(initialData, {
+      projectId: 'proj-brand',
+      ticketId: 'tic-brief',
+      colleagueId: 'col-mina',
+      date: '2026-05-06',
+      hours: 0.5,
+      billable: true,
+      note: 'Timer preview',
+    });
+
+    expect(billableImpact).toMatchObject({
+      hours: 0.5,
+      revenue: 60,
+      projectHoursAfter: 6,
+      estimateUsedAfter: 46,
+      budgetUsedAfter: 2,
+      deliverySignalAfter: 'On track',
+      ticketEstimateUsedAfter: 50,
+      needsTicket: false,
+    });
+
+    const projectLevelImpact = timeEntryImpactPreview(initialData, {
+      projectId: 'proj-brand',
+      ticketId: '',
+      colleagueId: 'col-mina',
+      date: '2026-05-06',
+      hours: 1,
+      billable: true,
+      note: 'Client call',
+    });
+
+    expect(projectLevelImpact.needsTicket).toBe(true);
+    expect(projectLevelImpact.ticketEstimateUsedAfter).toBeNull();
   });
 
   it('groups time entries into weekly colleague timesheets', () => {
