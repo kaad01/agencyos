@@ -62,7 +62,7 @@ AgencyOS already includes a real agency workflow prototype:
 - **Tickets** — assignable tickets with status, priority, estimate, due date, and description.
 - **Board** — Backlog → Todo → In progress → Review → Done.
 - **Time** — manual billable/internal time logging against projects and optional tickets.
-- **Reports** — project hours, billable hours, earned revenue, and CSV export.
+- **Reports** — project hours, billable hours, earned revenue, scoped filters, and CSV export.
 - **Customers** — client accounts connected to delivery.
 - **Team** — colleagues, capacity, rates, open tickets, and logged time.
 - **Persistence today** — `localStorage` for the prototype.
@@ -154,6 +154,14 @@ npm run build
 - [Agentic product loop](docs/agents/product-loop.md)
 - [Competitive analysis](docs/competitive-analysis.md)
 - [UX product vision](docs/ux-product-vision.md)
+
+## CSV export behavior
+
+AgencyOS exports time-report CSV files for spreadsheet-based agency reporting. The export includes one row per visible time entry with `Date`, `Customer`, `Project`, `Ticket`, `Person`, `Hours`, `Billable`, and `Note` columns.
+
+- From **Reports**, CSV export follows the active period, customer, project, person, and work-type filters.
+- From **Time**, weekly CSV export follows the selected week, project, and person scope.
+- The downloaded file is named `agencyos-time-report.csv`.
 
 ## Contributing
 

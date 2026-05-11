@@ -44,6 +44,8 @@ The previous Workflow tab is removed from the product UI. Development workflow r
 4. **Reporting workflow**
    - Show total time, billable time, project revenue, and per-project breakdown.
    - Export time report as CSV.
+   - CSV rows include date, customer, project, ticket, person, hours, billable status, and note.
+   - Report exports follow the active report filters; weekly timesheet exports follow the selected week, project, and person scope.
 
 5. **Team/customer workflow**
    - Customers own projects.
