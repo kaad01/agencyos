@@ -32,12 +32,21 @@ Larger follow-up areas:
 
 ## Local setup
 
+Prerequisites:
+
+- Node.js 22+
+- npm
+
+For app-only work, install dependencies and start the Vite prototype:
+
 ```bash
 npm install
 npm run dev
 ```
 
-For database work:
+The terminal prints the local URL to open in your browser.
+
+For database or Prisma work, Docker with Compose support is also required:
 
 ```bash
 cp .env.example .env
@@ -47,6 +56,8 @@ npm run db:generate
 npm run db:push
 npm run db:seed
 ```
+
+See `docs/local-database.md` for the database URL, Prisma Studio command, and cleanup steps.
 
 ## Quality gates
 
