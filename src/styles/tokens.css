@@ -1,0 +1,122 @@
+/**
+ * AgencyOS Design Tokens — Tier 1
+ * Linear/Vercel aesthetic. Restrained palette. HSL-based for predictability.
+ * Mirrored in src/lib/design/tokens.ts — keep in sync.
+ */
+
+:root {
+  /* Neutral scale (HSL hue 220, low chroma) */
+  --color-neutral-50:  hsl(220 20% 98%);
+  --color-neutral-100: hsl(220 16% 96%);
+  --color-neutral-200: hsl(220 14% 91%);
+  --color-neutral-300: hsl(220 12% 83%);
+  --color-neutral-400: hsl(220 10% 65%);
+  --color-neutral-500: hsl(220 9% 46%);
+  --color-neutral-600: hsl(220 11% 34%);
+  --color-neutral-700: hsl(220 13% 25%);
+  --color-neutral-800: hsl(220 16% 16%);
+  --color-neutral-900: hsl(220 20% 10%);
+  --color-neutral-950: hsl(220 24% 6%);
+
+  /* Brand */
+  --color-brand-primary: hsl(252 80% 60%);
+  --color-brand-primary-hover: hsl(252 80% 54%);
+  --color-brand-accent:  hsl(192 92% 50%);
+
+  /* Semantic */
+  --color-success: hsl(150 60% 42%);
+  --color-warning: hsl(38 92% 50%);
+  --color-danger:  hsl(0 72% 54%);
+  --color-info:    hsl(212 90% 56%);
+
+  /* Surface / border / text — light theme */
+  --color-bg:           var(--color-neutral-50);
+  --color-surface:      hsl(0 0% 100%);
+  --color-surface-muted: var(--color-neutral-100);
+  --color-border:       var(--color-neutral-200);
+  --color-border-strong: var(--color-neutral-300);
+  --color-text:         var(--color-neutral-900);
+  --color-text-muted:   var(--color-neutral-500);
+  --color-text-subtle:  var(--color-neutral-400);
+
+  /* Spacing — 4px grid */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  32px;
+  --space-8:  40px;
+  --space-9:  48px;
+  --space-10: 64px;
+  --space-11: 80px;
+  --space-12: 96px;
+
+  /* Radii */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* Shadows — subtle, Linear-style */
+  --shadow-1: 0 1px 2px 0 hsl(220 20% 10% / 0.04);
+  --shadow-2: 0 2px 4px -1px hsl(220 20% 10% / 0.06), 0 1px 2px hsl(220 20% 10% / 0.04);
+  --shadow-3: 0 6px 16px -4px hsl(220 20% 10% / 0.10), 0 2px 4px hsl(220 20% 10% / 0.05);
+  --shadow-4: 0 18px 40px -10px hsl(220 20% 10% / 0.18), 0 4px 8px hsl(220 20% 10% / 0.06);
+
+  /* Type scale */
+  --text-xs:   12px;   --leading-xs:   16px;
+  --text-sm:   13px;   --leading-sm:   18px;
+  --text-base: 14px;   --leading-base: 20px;
+  --text-md:   16px;   --leading-md:   24px;
+  --text-lg:   18px;   --leading-lg:   26px;
+  --text-xl:   22px;   --leading-xl:   30px;
+  --text-2xl:  28px;   --leading-2xl:  36px;
+  --text-3xl:  36px;   --leading-3xl:  44px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Inter", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+}
+
+[data-theme="dark"] {
+  --color-bg:           var(--color-neutral-950);
+  --color-surface:      var(--color-neutral-900);
+  --color-surface-muted: var(--color-neutral-800);
+  --color-border:       hsl(220 14% 20%);
+  --color-border-strong: hsl(220 14% 28%);
+  --color-text:         var(--color-neutral-50);
+  --color-text-muted:   var(--color-neutral-400);
+  --color-text-subtle:  var(--color-neutral-500);
+
+  --color-brand-primary: hsl(252 90% 70%);
+  --color-brand-primary-hover: hsl(252 90% 76%);
+  --color-brand-accent:  hsl(192 92% 60%);
+
+  --shadow-1: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+  --shadow-2: 0 2px 4px -1px hsl(0 0% 0% / 0.5), 0 1px 2px hsl(0 0% 0% / 0.4);
+  --shadow-3: 0 6px 16px -4px hsl(0 0% 0% / 0.6), 0 2px 4px hsl(0 0% 0% / 0.4);
+  --shadow-4: 0 18px 40px -10px hsl(0 0% 0% / 0.7), 0 4px 8px hsl(0 0% 0% / 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg:           var(--color-neutral-950);
+    --color-surface:      var(--color-neutral-900);
+    --color-surface-muted: var(--color-neutral-800);
+    --color-border:       hsl(220 14% 20%);
+    --color-border-strong: hsl(220 14% 28%);
+    --color-text:         var(--color-neutral-50);
+    --color-text-muted:   var(--color-neutral-400);
+    --color-text-subtle:  var(--color-neutral-500);
+  }
+}
