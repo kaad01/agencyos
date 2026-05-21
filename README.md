@@ -26,7 +26,7 @@ AgencyOS is an open-source operating system for small consulting agencies: **cus
 
 It is inspired by focused tools like **MOCO**, **Trello**, and **Clockify** — but built as one open-source product for teams that want delivery clarity without enterprise clutter.
 
-> Status: early public build. The current app is a polished Vite/localStorage prototype with a PostgreSQL + Prisma foundation now in place for the upcoming Next.js/Auth.js migration.
+> Status: early public build. AgencyOS now includes a Next.js + Auth.js-ready application shell, while the original Vite/localStorage prototype remains available during the migration.
 
 ## Why AgencyOS exists
 
@@ -62,7 +62,7 @@ AgencyOS already includes a real agency workflow prototype:
 - **Tickets** — assignable tickets with status, priority, estimate, due date, and description.
 - **Board** — Backlog → Todo → In progress → Review → Done.
 - **Time** — manual billable/internal time logging against projects and optional tickets.
-- **Reports** — project hours, billable hours, earned revenue, and CSV export.
+- **Reports** — project hours, billable hours, earned revenue, and CSV export of the currently filtered time entries for spreadsheet-friendly client and delivery review.
 - **Customers** — client accounts connected to delivery.
 - **Team** — colleagues, capacity, rates, open tickets, and logged time.
 - **Persistence today** — `localStorage` for the prototype.
@@ -116,7 +116,9 @@ npm install
 npm run dev
 ```
 
-Then open the local Vite app printed by the terminal.
+Then open [http://localhost:3000](http://localhost:3000).
+
+The full legacy prototype remains available at `/prototype` during the migration. If you need to run the old Vite entry directly, use `npm run dev:prototype`.
 
 ## Local database foundation
 

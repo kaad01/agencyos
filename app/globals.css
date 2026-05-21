@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+:root {
+  --agency-ink: #17201b;
+  --agency-muted: #66736b;
+  --agency-panel: rgba(255, 255, 255, 0.88);
+  --agency-surface: #f5f1e8;
+  --agency-surface-strong: #f8f6ef;
+  --agency-accent: #ff6b35;
+  --agency-lime: #a6ef82;
+}
+
+html {
+  background: var(--agency-surface);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, #dff6e6 0, #f5f1e8 30rem, #f8f7f3 100%);
+  color: var(--agency-ink);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.agency-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+}
+
+.agency-sidebar {
+  background: rgba(255, 255, 255, 0.72);
+  border-right: 1px solid rgba(23, 32, 27, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.agency-panel {
+  background: var(--agency-panel);
+  border: 1px solid rgba(23, 32, 27, 0.08);
+  box-shadow: 0 14px 34px rgba(23, 32, 27, 0.06);
+}
+
+.agency-stat {
+  background: linear-gradient(135deg, #17201b, #294235);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 44px rgba(23, 32, 27, 0.12);
+}
+
+.agency-muted {
+  color: var(--agency-muted);
+}
+
+.agency-badge {
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.agency-badge--green {
+  background: #def7d4;
+  color: #276e32;
+}
+
+.agency-badge--amber {
+  background: #fff1c7;
+  color: #8a5b00;
+}
+
+.agency-badge--blue {
+  background: #dfeeff;
+  color: #245c92;
+}
+
+.agency-badge--neutral {
+  background: #eef3ec;
+  color: #546159;
+}
+
+@media (max-width: 960px) {
+  .agency-shell {
+    grid-template-columns: 1fr;
+  }
+}
