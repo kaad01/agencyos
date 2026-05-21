@@ -1,4 +1,16 @@
-# Product areas and default review expectations
-/docs/ @product-architect @docs-community-engineer
-/src/ @frontend-engineer @qa-test-engineer
-/.github/ @devops-release-engineer
+# AgencyOS CODEOWNERS
+#
+# GitHub uses the LAST matching pattern, so the catch-all goes first
+# and more specific overrides follow. Only real GitHub handles or
+# @org/team mentions are honored — role labels like @product-architect
+# are placeholders that GitHub silently ignores.
+#
+# Until a team is created on GitHub, @kaad01 owns everything.
+
+*                @kaad01
+
+# Future role-team routing (uncomment once teams exist on GitHub):
+# /docs/         @kaad01-org/docs
+# /src/          @kaad01-org/frontend
+# /.github/      @kaad01-org/devops
+# /prisma/       @kaad01-org/backend
